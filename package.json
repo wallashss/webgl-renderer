@@ -1,0 +1,19 @@
+{
+	"name": "web-gl-renderer",
+	"version": "1.0.0",
+	"author": "wallashss",
+	"scripts": 
+	{
+		"build" : "browserify build.js | uglifyjs -mc > webglrenderer.min.js",
+		"build-debug" : "browserify build.js -o  webglrenderer.min.js"
+	},
+	"dependencies": {
+		"uglify-es": "3.0.x",
+		"browserify": "14.5.x"
+	},
+	"repository": {},
+	"engines": {
+		"node": "6.11.x",
+		"npm": "3.10.x"
+	}
+}
