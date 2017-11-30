@@ -235,7 +235,7 @@ function Renderer()
 		return newBufferId;
 	}
 
-	this.addObject = function(vertices, elements, color, transform, textureName)
+	this.uploadMesh = function(vertices, elements)
 	{
 		if(!vertices)
 		{
@@ -248,7 +248,8 @@ function Renderer()
 			let err = "Elements can not be null";
 			throw err;
 		}
-		
+
+
 		let verticesBufferId = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
 
@@ -260,6 +261,23 @@ function Renderer()
 		{
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 		}
+		
+		let elementsBufferId = gl.createBuffer();
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementsBufferId);
+		if(elements.constructor !== Uint16Array)
+		{
+			gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(elements), gl.STATIC_DRAW);
+		}
+		else
+		{
+			gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, elements, gl.STATIC_DRAW);
+		}
+		return {verticesBufferId: verticesBufferId, elementsBufferId: elementsBufferId, count: elements.length};
+	}
+
+	this.addObject = function(vertices, elements, color, transform, textureName)
+	{
+		let mesh = self.uploadMesh(vertices, elements);
 
 		let t = mat4.create();
 		if(transform)
@@ -273,67 +291,16 @@ function Renderer()
 			c = vec4.clone(color);
 		}
 		
-		let elementsBufferId = gl.createBuffer();
-		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementsBufferId);
-		if(elements.constructor !== Uint16Array)
-		{
-			gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(elements), gl.STATIC_DRAW);
-		}
-		else
-		{
-			gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, elements, gl.STATIC_DRAW);
-		}
 		
-		batches.push({verticesBufferId: verticesBufferId,
-				elementsBufferId: elementsBufferId,
+		batches.push({mesh: mesh,
 				transform: t,
-				count: elements.length,
 				color: color,
 				textureName: textureName, 
 				programId: Renderer.DEFAULT_PROGRAM});
 	}
 
-	this.addObjectInstances = function(vertices, elements, colors, matrices, textureName)
+	function _addInstance(mesh, colors, matrices, textureName)
 	{
-		if(!vertices)
-		{
-			let err = "Vertices can not be null";
-			throw err;
-		}
-
-		if(!elements)
-		{
-			let err = "Elements can not be null";
-			throw err;
-		}
-
-		if(!matrices)
-		{
-			let err = "Matrices can not be null";
-			throw err;
-		}
-
-		if(!colors)
-		{
-			let err = "Colors can not be null";
-			throw err;
-		}
-
-
-		if(colors.length !== matrices.length)
-		{
-			console.log("Colors and instances must have same length");
-			return;
-		}
-		let verticesBufferId = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-
-		
-		let elementsBufferId = gl.createBuffer();
-		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementsBufferId);
-		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(elements), gl.STATIC_DRAW);	
-		
 		if(hasInstancing)
 		{
 			let modelBufferId = gl.createBuffer();
@@ -364,10 +331,8 @@ function Renderer()
 			}
 			gl.bufferData(gl.ARRAY_BUFFER, colorArray, gl.STATIC_DRAW);
 
-			batches.push({verticesBufferId: verticesBufferId,
-				elementsBufferId: elementsBufferId,
+			batches.push({mesh,
 				modelBufferId: modelBufferId,
-				count: elements.length,
 				instanceCount: matrices.length,
 				colorBufferId: colorBufferId,
 				textureName: textureName,
@@ -381,16 +346,59 @@ function Renderer()
 				let t = mat4.clone(matrices[i]);
 				let c = vec4.clone(colors[i]);
 	
-				batches.push({verticesBufferId: verticesBufferId,
-					elementsBufferId: elementsBufferId,
+				batches.push({mesh,
 					transform: t,
-					count: elements.length,
 					color: c,
 					textureName: textureName,
 					programId: Renderer.DEFAULT_PROGRAM});
 			}
 		}
-		
+
+	}
+	this.addInstance = function(mesh, colors, matrices, textureName)
+	{
+		if(!matrices)
+		{
+			let err = "Matrices can not be null";
+			throw err;
+		}
+
+		if(!colors)
+		{
+			let err = "Colors can not be null";
+			throw err;
+		}
+
+		if(colors.length !== matrices.length)
+		{
+			console.log("Colors and instances must have same length");
+			return;
+		}
+		_addInstance(mesh, colors, matrices, textureName);
+
+	}
+	this.addObjectInstances = function(vertices, elements, colors, matrices, textureName)
+	{
+		if(!matrices)
+		{
+			let err = "Matrices can not be null";
+			throw err;
+		}
+
+		if(!colors)
+		{
+			let err = "Colors can not be null";
+			throw err;
+		}
+
+		if(colors.length !== matrices.length)
+		{
+			console.log("Colors and instances must have same length");
+			return;
+		}
+
+		let mesh = self.uploadMesh(vertices, elements);
+		_addInstance(mesh, colors, matrices, textureName);
 	}
 	
 	this.addLines = function(vertices, color)
@@ -533,9 +541,9 @@ function Renderer()
 			// Vertex Size = (2 * (vertex & normal) + 2 * nom) * 3 components (x, y, z) * 4 bytes (float)
 			let vertexSize = (3 + 3 + 2) * 4;
 			
-			if(currentVertexBufferId !== b.verticesBufferId)
+			if(currentVertexBufferId !== b.mesh.verticesBufferId)
 			{
-				gl.bindBuffer(gl.ARRAY_BUFFER, b.verticesBufferId);
+				gl.bindBuffer(gl.ARRAY_BUFFER, b.mesh.verticesBufferId);
 				gl.vertexAttribPointer(currentProgram.positionVertex, 3, gl.FLOAT, false, vertexSize, 0);
 				gl.vertexAttribPointer(currentProgram.normalVertex, 3, gl.FLOAT, false, vertexSize, 3 * 4); // 3 components x 4 bytes per float		
 				gl.vertexAttribPointer(currentProgram.texcoord, 2, gl.FLOAT, false, vertexSize, 3 * 4 + 3 * 4);
@@ -556,13 +564,13 @@ function Renderer()
 					gl.vertexAttribPointer(currentProgram.colorInstance, 4, gl.FLOAT, false, colorSize, 0);
 					setAttribDivisors(currentProgram.colorInstance, 1);
 				}
-				currentVertexBufferId = b.verticesBufferId;
+				currentVertexBufferId = b.mesh.verticesBufferId;
 			}
 			
-			if(currentElementBufferId !== b.elementsBufferId)
+			if(currentElementBufferId !== b.mesh.elementsBufferId)
 			{
-				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.elementsBufferId);
-				currentElementBufferId = b.elementsBufferId;
+				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.mesh.elementsBufferId);
+				currentElementBufferId = b.mesh.elementsBufferId;
 			}
 			
 			if(b.textureName && textureMap.hasOwnProperty(b.textureName) )
@@ -605,11 +613,11 @@ function Renderer()
 			
 			if(currentProgram.isInstance)
 			{
-				gl.drawElementsInstanced(gl.TRIANGLES, b.count, gl.UNSIGNED_SHORT, 0, b.instanceCount);
+				gl.drawElementsInstanced(gl.TRIANGLES, b.mesh.count, gl.UNSIGNED_SHORT, 0, b.instanceCount);
 			}
 			else
 			{
-				gl.drawElements(gl.TRIANGLES, b.count, gl.UNSIGNED_SHORT, 0);
+				gl.drawElements(gl.TRIANGLES, b.mesh.count, gl.UNSIGNED_SHORT, 0);
 			}
 		}
 
