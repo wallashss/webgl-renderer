@@ -361,7 +361,7 @@ function Renderer()
 		}
 
 	}
-	this.addInstance = function(mesh, colors, matrices, textureName)
+	this.addInstances = function(mesh, colors, matrices, textureName)
 	{
 		if(!matrices)
 		{
