@@ -312,34 +312,52 @@ function Renderer()
 			let modelBufferId = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, modelBufferId);
 
-			let matricesArray = new Float32Array(matrices.length * 16);
-			for(let i = 0; i < matrices.length; i++)
+			let instanceCount = 0;
+			if(matrices.constructor === Float32Array)
 			{
-				let m = matrices[i];
-				for(let j = 0; j < 16; j++)
-				{
-					matricesArray[i*16 + j] = m[j];
-				}
+				instanceCount = matrices.length / 16;
+				gl.bufferData(gl.ARRAY_BUFFER, matrices, gl.STATIC_DRAW);
 			}
-			gl.bufferData(gl.ARRAY_BUFFER, matricesArray, gl.STATIC_DRAW);
+			else
+			{
+				instanceCount = matrices.length;
+				let matricesArray = new Float32Array(matrices.length * 16);
+				for(let i = 0; i < matrices.length; i++)
+				{
+					let m = matrices[i];
+					for(let j = 0; j < 16; j++)
+					{
+						matricesArray[i*16 + j] = m[j];
+					}
+				}
+				gl.bufferData(gl.ARRAY_BUFFER, matricesArray, gl.STATIC_DRAW);
+			}
 
 
 			let colorBufferId = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, colorBufferId);
-			let colorArray = new Float32Array(colors.length * 4);
-			for(let i = 0; i < colors.length; i++)
+
+			if(colors.constructor === Float32Array)
 			{
-				let c = colors[i];
-				for(let j = 0; j < 4; j++)
-				{
-					colorArray[i*4 + j] = c[j];
-				}
+				gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
 			}
-			gl.bufferData(gl.ARRAY_BUFFER, colorArray, gl.STATIC_DRAW);
+			else
+			{
+				let colorArray = new Float32Array(colors.length * 4);
+				for(let i = 0; i < colors.length; i++)
+				{
+					let c = colors[i];
+					for(let j = 0; j < 4; j++)
+					{
+						colorArray[i*4 + j] = c[j];
+					}
+				}
+				gl.bufferData(gl.ARRAY_BUFFER, colorArray, gl.STATIC_DRAW);
+			}
 
 			batches.push({mesh,
 				modelBufferId: modelBufferId,
-				instanceCount: matrices.length,
+				instanceCount: instanceCount,
 				colorBufferId: colorBufferId,
 				textureName: textureName,
 				programId: Renderer.INSTACE_PROGRAM});
@@ -375,7 +393,14 @@ function Renderer()
 			throw err;
 		}
 
-		if(colors.length !== matrices.length)
+		if((matrices.constructor != Float32Array || colors.constructor != Float32Array) && 
+			colors.length !== matrices.length)
+		{
+			console.log("Colors and instances must have same length");
+			return;
+		}
+		if((matrices.constructor === Float32Array || colors.constructor === Float32Array) && 
+			(matrices.length / 16 !== colors.length /4 ))
 		{
 			console.log("Colors and instances must have same length");
 			return;
@@ -397,7 +422,14 @@ function Renderer()
 			throw err;
 		}
 
-		if(colors.length !== matrices.length)
+		if((matrices.constructor != Float32Array || colors.constructor != Float32Array) &&
+			colors.length !== matrices.length)
+		{
+			console.log("Colors and instances must have same length");
+			return;
+		}
+		if((matrices.constructor === Float32Array || colors.constructor === Float32Array) && 
+		(matrices.length / 16 !== colors.length /4 ))
 		{
 			console.log("Colors and instances must have same length");
 			return;
