@@ -5,7 +5,12 @@ const Shaders = require("./shaders");
 let gl = null;
 
 let TARGET_FPS = 60.0;
-let dt = 1.0 / TARGET_FPS;			 
+let dt = 1.0 / TARGET_FPS;
+
+const glMatrix = require("gl-matrix");
+const vec3 = glMatrix.vec3;
+const vec4 = glMatrix.vec4;
+const mat4 = glMatrix.mat4;
 
 function Renderer()
 {
