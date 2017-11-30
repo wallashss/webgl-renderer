@@ -237,9 +237,29 @@ function Renderer()
 
 	this.addObject = function(vertices, elements, color, transform, textureName)
 	{
+		if(!vertices)
+		{
+			let err = "Vertices can not be null";
+			throw err;
+		}
+
+		if(!elements)
+		{
+			let err = "Elements can not be null";
+			throw err;
+		}
+		
 		let verticesBufferId = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+		if(vertices.constructor === Float32Array)
+		{
+			gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+		}
+		else
+		{
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+		}
 
 		let t = mat4.create();
 		if(transform)
@@ -255,7 +275,14 @@ function Renderer()
 		
 		let elementsBufferId = gl.createBuffer();
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementsBufferId);
-		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(elements), gl.STATIC_DRAW);	
+		if(elements.constructor !== Uint16Array)
+		{
+			gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(elements), gl.STATIC_DRAW);
+		}
+		else
+		{
+			gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, elements, gl.STATIC_DRAW);
+		}
 		
 		batches.push({verticesBufferId: verticesBufferId,
 				elementsBufferId: elementsBufferId,
@@ -266,10 +293,34 @@ function Renderer()
 				programId: Renderer.DEFAULT_PROGRAM});
 	}
 
-	this.addObjectInstances = function(vertices, elements, colors, instances, textureName)
+	this.addObjectInstances = function(vertices, elements, colors, matrices, textureName)
 	{
+		if(!vertices)
+		{
+			let err = "Vertices can not be null";
+			throw err;
+		}
 
-		if(colors.length !== instances.length)
+		if(!elements)
+		{
+			let err = "Elements can not be null";
+			throw err;
+		}
+
+		if(!matrices)
+		{
+			let err = "Matrices can not be null";
+			throw err;
+		}
+
+		if(!colors)
+		{
+			let err = "Colors can not be null";
+			throw err;
+		}
+
+
+		if(colors.length !== matrices.length)
 		{
 			console.log("Colors and instances must have same length");
 			return;
@@ -288,10 +339,10 @@ function Renderer()
 			let modelBufferId = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, modelBufferId);
 
-			let matricesArray = new Float32Array(instances.length * 16);
-			for(let i = 0; i < instances.length; i++)
+			let matricesArray = new Float32Array(matrices.length * 16);
+			for(let i = 0; i < matrices.length; i++)
 			{
-				let m = instances[i];
+				let m = matrices[i];
 				for(let j = 0; j < 16; j++)
 				{
 					matricesArray[i*16 + j] = m[j];
@@ -317,7 +368,7 @@ function Renderer()
 				elementsBufferId: elementsBufferId,
 				modelBufferId: modelBufferId,
 				count: elements.length,
-				instanceCount: instances.length,
+				instanceCount: matrices.length,
 				colorBufferId: colorBufferId,
 				textureName: textureName,
 				programId: Renderer.INSTACE_PROGRAM});
@@ -325,9 +376,9 @@ function Renderer()
 		}
 		else
 		{
-			for(let i  =0 ; i < instances.length; i++)
+			for(let i  =0 ; i < matrices.length; i++)
 			{
-				let t = mat4.clone(instances[i]);
+				let t = mat4.clone(matrices[i]);
 				let c = vec4.clone(colors[i]);
 	
 				batches.push({verticesBufferId: verticesBufferId,
@@ -422,6 +473,7 @@ function Renderer()
 		let currentElementBufferId = null;
 		let currentModelBufferId = null;
 		let currentTextureId = null;
+		let blendEnabled = false;
 
 		gl.activeTexture(gl.TEXTURE0);
 		for(let i = 0; i < batches.length; i++)
@@ -531,13 +583,25 @@ function Renderer()
 					gl.uniform1i(program.texSamplerUniform, 0);
 					gl.bindTexture(gl.TEXTURE_2D, dummyTexture);
 					gl.uniform1f(currentProgram.useTextureUniform, 0.0);
-					if(!currentProgram.isInstance)
-					{
-						gl.uniform4fv(currentProgram.colorUniform, b.color);
-					}
 					currentTextureId = dummyTexture;
 				}
 			}
+
+			if(!currentProgram.isInstance)
+			{
+				if(b.color >= 1.0 && blendEnabled)
+				{
+					gl.disable(gl.BLEND);
+					blendEnabled = false;
+				}
+				else if(b.color < 1.0 && !blendEnabled)
+				{
+					gl.enable(gl.BLEND);
+					blendEnabled = true;
+				}
+				gl.uniform4fv(currentProgram.colorUniform, b.color);
+			}
+
 			
 			if(currentProgram.isInstance)
 			{
@@ -663,6 +727,8 @@ function Renderer()
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 		gl.bindTexture(gl.TEXTURE_2D, null);
+
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
 		return true;
 	}
