@@ -600,7 +600,7 @@ function Renderer()
 					let colorSize = 4 * 4;
 					gl.bindBuffer(gl.ARRAY_BUFFER, b.colorBufferId);
 					gl.vertexAttribPointer(currentProgram.colorInstance, 4, gl.FLOAT, false, colorSize, 0);
-					setAttribDivisors(currentProgram.colorInstance, 1);
+					setAttribDivisors([currentProgram.colorInstance], 1);
 				}
 				currentVertexBufferId = b.mesh.verticesBufferId;
 			}
