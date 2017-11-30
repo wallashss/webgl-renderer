@@ -1,5 +1,13 @@
 "use strict";
 
+const _glMatrix = require("gl-matrix");
+const vec3  = _glMatrix.vec3;
+const mat4  = _glMatrix.mat4;
+
+const Fly = require("./lvrl/fly");
+const Examine = require("./lvrl/examine");
+const Timer = require("./timer");
+
 function Camera()
 {
 	var self = this;
@@ -253,4 +261,4 @@ function Camera()
 		state.velocity = vec3.fromValues(velocity, velocity, velocity);
 	}();
 }
-window.Camera = Camera;
+module.exports = Camera;

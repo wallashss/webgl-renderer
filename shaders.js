@@ -1,4 +1,4 @@
-window.VERTEX_SHADER_SOURCE = 
+exports.VERTEX_SHADER_SOURCE = 
 `
 attribute vec3 position;
 attribute vec3 normal;
@@ -31,7 +31,7 @@ void main (void)
 }
 `
 
-window.FRAGMENT_SHADER_SOURCE = 
+exports.FRAGMENT_SHADER_SOURCE = 
 `
 precision mediump float;
 varying vec4 currentColor;
@@ -77,7 +77,7 @@ void main(void)
 }
 `
 
-window.INSTANCE_VERTEX_SHADER_SOURCE =
+exports.INSTANCE_VERTEX_SHADER_SOURCE =
 `
 attribute vec3 position;
 attribute vec3 normal;

@@ -1,5 +1,6 @@
 "use strict"
 
+const Shaders = require("./shaders");
 // Global gl context... It is nice to debug.
 let gl = null;
 
@@ -702,11 +703,11 @@ function Renderer()
 			self.onResize();
 		});
 		
-		self.loadShaders(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE, Renderer.DEFAULT_PROGRAM);
+		self.loadShaders(Shaders.VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.DEFAULT_PROGRAM);
 
 		if(hasInstancing)
 		{
-			self.loadShaders(INSTANCE_VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE, Renderer.INSTACE_PROGRAM);
+			self.loadShaders(Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.INSTACE_PROGRAM);
 		}
 		
 		gl.clearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
@@ -755,4 +756,5 @@ function Renderer()
 
 Renderer.DEFAULT_PROGRAM = "_default";
 Renderer.INSTACE_PROGRAM = "_instance";
-window.Renderer = Renderer;
+
+module.exports = Renderer;

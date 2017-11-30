@@ -10,11 +10,12 @@
 	},
 	"dependencies": {
 		"uglify-es": "3.0.x",
-		"browserify": "14.5.x"
+		"browserify": "14.5.x",
+		"gl-matrix": "2.4.x"
 	},
 	"repository": {},
 	"engines": {
-		"node": "6.11.x",
+		"node": "6.9.x",
 		"npm": "3.10.x"
 	}
 }

@@ -1,12 +1,19 @@
 "use strict";
 
+const _glMatrix = require("gl-matrix");
+
+const vec3 = _glMatrix.vec3;
+const vec4 = _glMatrix.vec4;
+const mat4 = _glMatrix.mat4;
+
+const glMatrix = _glMatrix.glMatrix;
+
 function Fly()
 {
-	var _viewMatrix = mat4.create();
-	var _forwardDirection = vec3.fromValues(0.0, 0.0, -1.0);
-		
-	var EPSILON = 1e-5;
+	let _viewMatrix = mat4.create();
+	let _forwardDirection = vec3.fromValues(0.0, 0.0, -1.0);
 	
+	const PITCH_LIMIAR = glMatrix.toRadian(179.0);
 	
 	this.setFowardDirection = function(forward)
 	{
@@ -24,10 +31,10 @@ function Fly()
 	
 	this.update = function(dt, state)
 	{
-        if(Utils.epsilonEqual(state.yawIntensity, 0.0, EPSILON) && Utils.epsilonEqual(state.pitchIntensity, 0.0, EPSILON) &&
-           Utils.epsilonEqual(state.forward, 0.0, EPSILON) && Utils.epsilonEqual(state.backward, 0.0, EPSILON) &&
-           Utils.epsilonEqual(state.left, 0.0, EPSILON) && Utils.epsilonEqual(state.right, 0.0, EPSILON) &&
-           Utils.epsilonEqual(state.up, 0.0, EPSILON) && Utils.epsilonEqual(state.down, 0.0, EPSILON))
+        if(glMatrix.equals(state.yawIntensity, 0.0) && glMatrix.equals(state.pitchIntensity, 0.0) &&
+           glMatrix.equals(state.forward, 0.0) && glMatrix.equals(state.backward, 0.0) &&
+           glMatrix.equals(state.left, 0.0) && glMatrix.equals(state.right, 0.0) &&
+           glMatrix.equals(state.up, 0.0) && glMatrix.equals(state.down, 0.0))
 		{
 			return false;
 		}
@@ -39,42 +46,34 @@ function Fly()
 		let up = vec3.fromValues(up4[0], up4[1], up4[2]);
 		vec3.normalize(up, up);
 
-        if(!Utils.epsilonEqual(state.yawIntensity, 0.0, EPSILON) || !Utils.epsilonEqual(state.pitchIntensity, 0.0, EPSILON))
+        if(!glMatrix.equals(state.yawIntensity, 0.0) || !glMatrix.equals(state.pitchIntensity, 0.0))
 		{
 			if(!state.lockUpRotation)
 			{
-                // glm::dmat4 yawRot = glm::rotate(glm::dmat4(), glm::radians(state->yawIntensity * state->angularVelocity * dt), up);
-//                 viewMatrix = yawRot * viewMatrix;
 				let yawRot = mat4.create();
-				mat4.rotate(yawRot, yawRot, Utils.radians(state.yawIntensity * state.angularVelocity * dt), up);
+				mat4.rotate(yawRot, yawRot, glMatrix.toRadian(state.yawIntensity * state.angularVelocity * dt), up);
                 mat4.multiply(viewMatrix, yawRot, viewMatrix);
 			}
 
 			if(!state.lockRightRotation)
 			{
-                // glm::dmat4 invViewMatrix = glm::inverse(viewMatrix);
-//                 glm::dvec3 front = -glm::normalize(glm::dvec3(invViewMatrix[2][0], invViewMatrix[2][1], invViewMatrix[2][2]));
-//                 double absPitch  = glm::acos(glm::dot(glm::make_vec3(state->worldUp), front));
-
 				let invViewMatrix = mat4.create();
 				mat4.invert(invViewMatrix, viewMatrix);
 				
 				let front = vec3.fromValues(-invViewMatrix[2*4+0], -invViewMatrix[2*4+1], -invViewMatrix[2*4+2]);
 				vec3.normalize(front, front);
-				let absPitch = Utils.degrees(Math.acos(vec3.dot(state.worldUp, front)));
+				let absPitch = Math.acos(vec3.dot(state.worldUp, front));
 				
-				let deltaPitch = state.pitchIntensity * state.angularVelocity * dt;
+				let deltaPitch = glMatrix.toRadian(state.pitchIntensity * state.angularVelocity * dt);
 				let auxAbsPitch = absPitch + deltaPitch;
 				
-				if(auxAbsPitch < 179.0 && auxAbsPitch > 1.0)
+				if(auxAbsPitch < PITCH_LIMIAR && auxAbsPitch > 1.0)
 				{
 					let pitchRot = mat4.create();
 					
-					mat4.rotate(pitchRot, pitchRot, Utils.radians(deltaPitch), vec3.fromValues(1.0, 0.0, 0.0));
+					mat4.rotate(pitchRot, pitchRot, deltaPitch, vec3.fromValues(1.0, 0.0, 0.0));
 					
-// 					mat4.multiply(viewMatrix, tInvPivot, viewMatrix);
 					mat4.multiply(viewMatrix, pitchRot, viewMatrix);
-// 					mat4.multiply(viewMatrix, tPivot, viewMatrix);
 				}
 			}
 
@@ -82,16 +81,11 @@ function Fly()
 			state.pitchIntensity = 0.0;
 		}
 
-//         glm::dvec3 deltaS;
 		let deltaS = vec3.create();
 		
         deltaS[0] = state.velocity[0] * (state.left - state.right) * dt;
         deltaS[1] = state.velocity[1] * (state.down - state.up) * dt;
         deltaS[2] = state.velocity[2] * (state.backward - state.forward) * dt;
-
-        // glm::dvec3 forward = glm::normalize(glm::make_vec3(_forwardDirection));
-//         glm::dvec3 right   = glm::normalize(glm::cross(forward, up));
-//         glm::dvec3 upCam   = glm::normalize(glm::cross(right, forward));
 		let forward = vec3.clone(_forwardDirection);
 		vec3.normalize(forward, forward);
 
@@ -99,13 +93,10 @@ function Fly()
 		vec3.cross(right, forward, up);
 		vec3.normalize(right, right);
 
-//         glm::dvec3 upCam   = glm::normalize(glm::cross(right, forward));
 		let upCam = vec3.create();
 		vec3.cross(upCam, right, forward);
 		vec3.normalize(upCam, upCam);
 
-//         glm::dvec3 totalTrans  = forward * deltaS[2] + upCam * deltaS[1] + right * deltaS[0];
-// 		glm::dmat4 translation = glm::translate(glm::dmat4(), totalTrans);
 		let totalTrans = vec3.fromValues(forward[0] * deltaS[2] + upCam[0] * deltaS[1] + right[0]*deltaS[0], 
 										forward[1] * deltaS[2] + upCam[1] * deltaS[1] + right[1]*deltaS[0],
 										forward[2] * deltaS[2] + upCam[2] * deltaS[1] + right[2]*deltaS[0]);
@@ -120,19 +111,6 @@ function Fly()
 	
 	this.applyRestrictions = function(up)
 	{
-// 		glm::dmat4 viewMatrix = glm::make_mat4(m1Array16);
-//         glm::dmat4 invViewMatrix = glm::inverse(viewMatrix);
-// 
-//         glm::dvec4 eye(invViewMatrix[3][0], invViewMatrix[3][1], invViewMatrix[3][2], invViewMatrix[3][3]);
-//         eye = eye / eye[3];
-// 
-//         // Calculate center
-//         auto front  = -glm::dvec3(invViewMatrix[2][0], invViewMatrix[2][1], invViewMatrix[2][2]);
-//         auto center = glm::dvec3(eye) + front;
-// 
-//         glm::dmat4 newMatrix = glm::lookAt(glm::make_vec3(glm::value_ptr(eye)), center, glm::make_vec3(state->worldUp));
-//         std::memcpy(m2Array16, glm::value_ptr(newMatrix), 16 * sizeof(double));
-
         let invViewMatrix = mat4.create();
         mat4.invert(invViewMatrix, _viewMatrix);
 
@@ -148,4 +126,4 @@ function Fly()
 
 }
 
-window.Fly = Fly;
+module.exports = Fly;

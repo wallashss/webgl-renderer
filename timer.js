@@ -26,4 +26,4 @@ function Timer()
 	}
 }
 
-window.Timer = Timer;
+module.exports = Timer;

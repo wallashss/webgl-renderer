@@ -1,12 +1,18 @@
 "use strict";
 
+const _glMatrix = require("gl-matrix");
+
+const vec3 = _glMatrix.vec3;
+const vec4 = _glMatrix.vec4;
+const mat4 = _glMatrix.mat4;
+
+const glMatrix = _glMatrix.glMatrix;
+
 function Examine()
 {
 	var _isPanning = false;
 	var _viewMatrix = mat4.create();
 	var _initViewMatrix = mat4.create();
-		
-	var EPSILON = 1e-5;
 	
 	this.setViewMatrix = function(viewMatrix)
 	{
@@ -22,9 +28,9 @@ function Examine()
 	
 	this.update = function(dt, state)
 	{
-		if(!Utils.epsilonEqual(state.yawIntensity, 0.0, EPSILON) || 
-			!Utils.epsilonEqual(state.pitchIntensity, 0.0, EPSILON) || 
-			!Utils.epsilonEqual(state.zoomIntensity, 0.0, EPSILON) || _isPanning)
+		if(!glMatrix.equals(state.yawIntensity, 0.0) || 
+			!glMatrix.equals(state.pitchIntensity, 0.0) || 
+			!glMatrix.equals(state.zoomIntensity, 0.0) || _isPanning)
 		{
             let viewMatrix = mat4.clone(_viewMatrix);
 
@@ -33,8 +39,8 @@ function Examine()
                 viewMatrix = mat4.clone(_initViewMatrix);
 			}
 
-            if(!Utils.epsilonEqual(state.yawIntensity, 0.0, EPSILON) || 
-              !Utils.epsilonEqual(state.pitchIntensity, 0.0, EPSILON))
+            if(!glMatrix.equals(state.yawIntensity, 0.0) || 
+              !glMatrix.equals(state.pitchIntensity, 0.0))
 			{
 				let pivot = vec3.fromValues(state.pivot[0], state.pivot[1], state.pivot[2]);
                 vec3.transformMat4(pivot, pivot, viewMatrix);
@@ -46,7 +52,7 @@ function Examine()
 
 				if(!state.lockUpRotation)
 				{
-					let yaw = Utils.radians(state.yawIntensity * state.angularVelocity * dt);
+					let yaw = glMatrix.toRadian(state.yawIntensity * state.angularVelocity * dt);
 					
 					let up4 = vec4.fromValues(state.worldUp[0], state.worldUp[1], state.worldUp[2], 0.0);
 					
@@ -69,16 +75,16 @@ function Examine()
 					
 					let front = vec3.fromValues(-invViewMatrix[2*4+0], -invViewMatrix[2*4+1], -invViewMatrix[2*4+2]);
 					vec3.normalize(front, front);
-					let absPitch = Utils.degrees(Math.acos(vec3.dot(state.worldUp, front)));
+					let absPitch = Math.acos(vec3.dot(state.worldUp, front));
 					
-					let deltaPitch = state.pitchIntensity * state.angularVelocity * dt;
+					let deltaPitch = glMatrix.toRadian(state.pitchIntensity * state.angularVelocity * dt);
 					let auxAbsPitch = absPitch + deltaPitch;
 					
-					if(auxAbsPitch < 180.0 && auxAbsPitch > 0.0)
+					if(auxAbsPitch < Math.PI && auxAbsPitch > 0.0)
 					{
 						let pitchRot = mat4.create();
 						
-                        mat4.rotate(pitchRot, pitchRot, Utils.radians(deltaPitch), vec3.fromValues(1.0, 0.0, 0.0));
+                        mat4.rotate(pitchRot, pitchRot, deltaPitch, vec3.fromValues(1.0, 0.0, 0.0));
                         
                         mat4.multiply(viewMatrix, tInvPivot, viewMatrix);
                         mat4.multiply(viewMatrix, pitchRot, viewMatrix);
@@ -91,7 +97,7 @@ function Examine()
 				state.pitchIntensity = 0.0;
 			}
 
-            if(!Utils.epsilonEqual(state.zoomIntensity, 0.0, EPSILON))
+            if(!glMatrix.equals(state.zoomIntensity, 0.0))
 			{
                 let invViewMatrix = mat4.create(); 
                 mat4.invert(invViewMatrix, viewMatrix);
@@ -99,7 +105,7 @@ function Examine()
                 let eye = vec3.fromValues(invViewMatrix[3*4+0], invViewMatrix[3*4+1], invViewMatrix[3*4+2]);
                 let pivot = vec3.fromValues(state.pivot[0], state.pivot[1], state.pivot[2]);
 
-                if(!(Utils.epsilonEqual(eye[0], pivot[0], EPSILON) && Utils.epsilonEqual(eye[1], pivot[1], EPSILON) && Utils.epsilonEqual(eye[2], pivot[2], EPSILON)))
+                if(!(glMatrix.equals(eye[0], pivot[0]) && glMatrix.equals(eye[1], pivot[1]) && glMatrix.equals(eye[2], pivot[2])))
 				{
 					let t = vec3.create();
 					vec3.normalize(t, vec3.fromValues(pivot[0] - eye[0], pivot[1]- eye[1], pivot[2] - eye[2]));
@@ -175,4 +181,4 @@ function Examine()
 	}
 
 }
-window.Examine = Examine;
+module.exports = Examine;
