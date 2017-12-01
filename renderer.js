@@ -1,6 +1,8 @@
 "use strict"
 
 const Shaders = require("./shaders");
+const ShaderBuilder = require("./shaderbuilder");
+const FrameBuffer = require("./framebuffer");
 // Global gl context... It is nice to debug.
 let gl = null;
 
@@ -11,6 +13,8 @@ const glMatrix = require("gl-matrix");
 const vec3 = glMatrix.vec3;
 const vec4 = glMatrix.vec4;
 const mat4 = glMatrix.mat4;
+
+let aux = null;
 
 function Renderer()
 {
@@ -95,55 +99,24 @@ function Renderer()
 		
 	}
 
-
-	this.buildShader = function(source, type)
-	{
-		let shader = gl.createShader(type);
-		
-		gl.shaderSource(shader, source);
-		gl.compileShader(shader);
-		
-		if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
-		{
-			console.log(gl.getShaderInfoLog(shader));
-			return null;
-		}
-		return shader;
-	}
-
-	
-
 	this.loadShaders = function(vertexSource, fragmentSource, id)
 	{
 		let programId = id ? id : "_default";
 		gl.useProgram(null);
-		let vertexShader = self.buildShader(vertexSource, gl.VERTEX_SHADER);
-		let fragmentShader = self.buildShader(fragmentSource, gl.FRAGMENT_SHADER);
 
-		if( vertexShader && fragmentShader )
+		let program = ShaderBuilder.createProgram(vertexSource, fragmentSource, gl);
+		
+		if(program)
 		{
-			let program = gl.createProgram();
-			gl.attachShader(program, vertexShader);
-			gl.attachShader(program, fragmentShader);
-			gl.linkProgram(program);
-			
-			if(!gl.getProgramParameter(program, gl.LINK_STATUS))
-			{
-				console.log("Error initing shader program");
-				return;
-			}
 			gl.useProgram(program);
 			
 			let positionVertex = gl.getAttribLocation(program, "position");
 			
 			let normalVertex = gl.getAttribLocation(program, "normal");
-
 			
 			let texcoord = gl.getAttribLocation(program, "texcoord");
-			// gl.enableVertexAttribArray(texcoord);
 
 			let model = gl.getAttribLocation(program, "model");
-			// gl.enableVertexAttribArray(model);
 
 			let colorInstance = gl.getAttribLocation(program, "colorInstance");
 
@@ -220,15 +193,10 @@ function Renderer()
 			else if(programId === Renderer.INSTACE_PROGRAM)
 			{
 				instanceProgram = newProgram;
-			
 			}
 			programsMap[programId] = newProgram;
 			gl.useProgram(null);
-			console.log("succesfully loaded shaders");
-		}
-		else
-		{
-			console.log("Error loading shaders");
+
 		}
 	}
 
@@ -499,6 +467,8 @@ function Renderer()
 	{
 		// Clear screen
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		// aux.bind();
+		// aux.drawToScreen();
 		
 		if(batches.length == 0 && lines.length == 0)
 		{
@@ -518,6 +488,7 @@ function Renderer()
 		let currentVertexBufferId = null;
 		let currentElementBufferId = null;
 		let currentModelBufferId = null;
+		let currentColorBufferId = null;
 		let currentTextureId = null;
 		let blendEnabled = false;
 
@@ -586,7 +557,13 @@ function Renderer()
 				gl.vertexAttribPointer(currentProgram.normalVertex, 3, gl.FLOAT, false, vertexSize, 3 * 4); // 3 components x 4 bytes per float		
 				gl.vertexAttribPointer(currentProgram.texcoord, 2, gl.FLOAT, false, vertexSize, 3 * 4 + 3 * 4);
 
-				if(currentProgram.isInstance)
+				
+				currentVertexBufferId = b.mesh.verticesBufferId;
+			}
+
+			if(currentProgram.isInstance)
+			{
+				if(currentModelBufferId !== b.modelBufferId)
 				{
 					gl.bindBuffer(gl.ARRAY_BUFFER, b.modelBufferId);
 					let rowSize = 4 * 4 ; //  4 columns * 4 bytes
@@ -596,13 +573,17 @@ function Renderer()
 						gl.vertexAttribPointer(currentProgram.model + i, 4, gl.FLOAT, false, matrixSize, i * rowSize);
 					}
 					setAttribDivisors(currentProgram.modelAttribs, 1);
+					currentModelBufferId = b.modelBufferId;
+				}
 
+				if(currentColorBufferId !== b.colorBufferId)
+				{
 					let colorSize = 4 * 4;
 					gl.bindBuffer(gl.ARRAY_BUFFER, b.colorBufferId);
 					gl.vertexAttribPointer(currentProgram.colorInstance, 4, gl.FLOAT, false, colorSize, 0);
 					setAttribDivisors([currentProgram.colorInstance], 1);
+					currentColorBufferId = b.colorBufferId;
 				}
-				currentVertexBufferId = b.mesh.verticesBufferId;
 			}
 			
 			if(currentElementBufferId !== b.mesh.elementsBufferId)
@@ -619,7 +600,7 @@ function Renderer()
 					gl.uniform1i(program.texSamplerUniform, 0);
 					gl.bindTexture(gl.TEXTURE_2D, textureId);
 					gl.uniform1f(currentProgram.useTextureUniform, 1.0);
-					textureId = textureId;
+					currentTextureId = textureId;
 				}
 			}			
 			else 
@@ -677,6 +658,10 @@ function Renderer()
 		}
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.useProgram(null);
+		enabledVertexAttribMap = [];
+
+		// aux.release();
+		// aux.drawToScreen();
 	}
 
 	this.updateViewBounds = function()
@@ -775,6 +760,8 @@ function Renderer()
 		gl.bindTexture(gl.TEXTURE_2D, null);
 
 		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+		aux = new FrameBuffer(gl, canvas.width, canvas.height);
 
 		return true;
 	}
