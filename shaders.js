@@ -125,14 +125,14 @@ void main (void)
     gl_Position = vec4(position, 0, 1);
     pos = (position + vec2(1)) * 0.5;
 
-    if(pos.x > 0.1) // extra check becouse of numerical precision...
-    {
-        pos.x =  size.x;
-    }
-    if(pos.y > 0.1)
-    {
-        pos.y = size.y;
-    }
+    // if(pos.x > 0.1) // extra check because of numerical precision...
+    // {
+    //     pos.x =  size.x;
+    // }
+    // if(pos.y > 0.1)
+    // {
+    //     pos.y = size.y;
+    // }
 }
 `
 

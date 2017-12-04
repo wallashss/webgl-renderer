@@ -14,8 +14,6 @@ const vec3 = glMatrix.vec3;
 const vec4 = glMatrix.vec4;
 const mat4 = glMatrix.mat4;
 
-let aux = null;
-
 function Renderer()
 {
 	let self = this;
@@ -41,7 +39,8 @@ function Renderer()
 
 	let enabledVertexAttribMap = [];
 	let attribDivisors = {};
-	
+
+	let instanceExt = null;
 	
 	function enableAttribs (attribs)
 	{
@@ -70,7 +69,8 @@ function Renderer()
 			{
 				if(attribDivisors[a] > 0)
 				{
-					gl.vertexAttribDivisor(a, 0);
+					
+					instanceExt.vertexAttribDivisorANGLE(a, 0);
 					attribDivisors[a] = 0;
 				}
 			}
@@ -86,13 +86,13 @@ function Renderer()
 			{
 				if(attribDivisors[a] !== size)
 				{
-					gl.vertexAttribDivisor(a, size);
+					instanceExt.vertexAttribDivisorANGLE(a, size);
 					attribDivisors[a] = size;
 				}
 			}
 			else
 			{
-				gl.vertexAttribDivisor(a, size);
+				instanceExt.vertexAttribDivisorANGLE(a, size);
 				attribDivisors[a] = size;
 			}
 		}
@@ -466,7 +466,6 @@ function Renderer()
 	this.draw = function()
 	{
 		// Clear screen
-		// aux.bind();
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		
 		if(batches.length == 0 && lines.length == 0)
@@ -631,7 +630,7 @@ function Renderer()
 			
 			if(currentProgram.isInstance)
 			{
-				gl.drawElementsInstanced(gl.TRIANGLES, b.mesh.count, gl.UNSIGNED_SHORT, 0, b.instanceCount);
+				instanceExt.drawElementsInstancedANGLE(gl.TRIANGLES, b.mesh.count, gl.UNSIGNED_SHORT, 0, b.instanceCount);
 			}
 			else
 			{
@@ -658,9 +657,6 @@ function Renderer()
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.useProgram(null);
 		enabledVertexAttribMap = [];
-
-		// aux.release();
-		// aux.drawToScreen();
 	}
 
 	this.updateViewBounds = function()
@@ -671,9 +667,6 @@ function Renderer()
 		canvas.element.height = bounds.height;
 		canvas.width = bounds.width;
 		canvas.height = bounds.height;
-		aux.bind();
-		aux.resize(canvas.width, canvas.height);
-		aux.release();
 	}
 
 	this.onResize = function()
@@ -707,23 +700,15 @@ function Renderer()
 	{
 		canvas.element = canvasElement;
 
-		gl = canvasElement.getContext("webgl2");
+		gl = canvasElement.getContext("webgl");
 
-		if(!gl)
+		if(gl.getExtension("ANGLE_instanced_arrays"))
 		{
-			gl = canvasElement.getContext("webgl");
-
-			if(!gl)
-			{
-				return false;
-			}
-		}
-		else
-		{
+			console.log("Context has ANGLE_instanced_arrays");
+			instanceExt = gl.getExtension('ANGLE_instanced_arrays');			
 			hasInstancing = true;
 		}
-
-		aux = new FrameBuffer(gl, 128, 128);
+		
 		self.updateViewBounds();
 
 		gl.viewport(0, 0, canvas.width, canvas.height);
@@ -742,15 +727,6 @@ function Renderer()
 		
 		gl.clearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-		
-		// gl.viewport(0, 0, 500, 100);
-		console.log("Init complete");
-		
-		// self.addObject( [
-			 // 1.0,  0.0,  0.0, 	0.0, 0.0, -1.0,		0.0, 0.0,
-			 // 0.0, 1.0,  0.0,	0.0, 0.0, -1.0,		0.0, 0.0,
-			 // 0.0, 0.0,  0.0,	0.0, 0.0, -1.0,		0.0, 0.0
-		// ], [0, 1, 2]);
 		
 		gl.enable(gl.DEPTH_TEST);
 
@@ -774,6 +750,10 @@ function Renderer()
 		return true;
 	}
 	
+	this.getContext = function()
+	{
+		return gl;
+	}
 	
 	this.setViewMatrix = function(viewMatrix)
 	{

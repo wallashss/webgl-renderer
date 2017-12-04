@@ -8,7 +8,6 @@ function Framebuffer(gl, width, height)
 {
     let self = this;
     let _framebuffer = null;
-    let _texture = null;
 
     let _width  = width;
     let _height = height;
@@ -17,6 +16,10 @@ function Framebuffer(gl, width, height)
     let _vHeight = 0;
 
     let _framebufferSize = 0;
+
+    let _textures = [];
+    let _depthTexture = null;
+    let _depthExt = null;
 
     Framebuffer.defaultQuad = null;
     Framebuffer.defaultShader = null;
@@ -77,26 +80,48 @@ function Framebuffer(gl, width, height)
         _vWidth = _width / _framebufferSize;
         _vHeight = _height / _framebufferSize;
 
-        console.log(_width, _vWidth);
-        console.log(_height, _vHeight);
-
     }
-    function createTexture()
+    function addTexture(attach, internalFormat, format, type)
     {
-        let texture = gl.createTexture();
-        buildTexture(texture);
-        return texture;
-        // gl.generateMipmap(gl.TEXTURE_2D);
+        let textureId = gl.createTexture();
+        buildTexture(textureId, attach, internalFormat, format, type);
+        _textures.push({attach: attach,
+                        internalFormat: internalFormat, 
+                        format: format, 
+                        type: type,
+                        textureId: textureId});
+        return _textures.length - 1;
     }
 
-    function buildTexture(texture)
+    this.addDepthTexture = function()
     {
+        _depthTexture = gl.createTexture();
+        buildDepthTexture();
+    }
+
+    function buildDepthTexture()
+    {
+        if(_depthTexture)
+        {
+            gl.bindTexture(gl.TEXTURE_2D, _depthTexture);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, _framebufferSize,_framebufferSize, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_SHORT, null);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER,  gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, _depthTexture, 0);
+            // gl.bindTexture(gl.TEXTURE_2D, null);
+        }
+    }
+
+    function buildTexture(texture, attach, internalFormat, format, type)
+    {
+        
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, _framebufferSize, _framebufferSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        // gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, _framebufferSize, _framebufferSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, _framebufferSize, _framebufferSize, 0, format, type, null);
         
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + attach, gl.TEXTURE_2D, texture, 0);
 
         gl.bindTexture(gl.TEXTURE_2D, null);
     }
@@ -107,7 +132,13 @@ function Framebuffer(gl, width, height)
         _height = h;
 
         updateSizes();
-        buildTexture(_texture);
+        for(let i = 0; i < _textures.length; i++)
+        {
+            let t = _textures[i];
+            buildTexture(t.textureId, t.attach, t.internalFormat, t.format, t.type);
+        }
+        buildDepthTexture();
+        // buildTexture(_texture.textureId, _tex);
     }
 
     this.bind = function()
@@ -120,8 +151,17 @@ function Framebuffer(gl, width, height)
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 
-    this.drawToScreen = function()
+    this.drawToScreen = function(idx)
     {
+        if(idx === null || idx === undefined)
+        {
+            idx = 0;
+        }
+        if(_textures.length <= 0)
+        {
+            console.log("Framebuffer with no textures!");
+            return;
+        }
         gl.useProgram(Framebuffer.defaultProgram);
         
         const vertexSize = 2 * 4
@@ -132,8 +172,9 @@ function Framebuffer(gl, width, height)
         let texSamplerUniform = gl.getUniformLocation(Framebuffer.defaultProgram, "texSampler");
         let sizeUniform = gl.getUniformLocation(Framebuffer.defaultProgram, "size");
 
+        let texture = _textures[idx];
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, _texture);
+        gl.bindTexture(gl.TEXTURE_2D, texture.textureId);
         gl.uniform1i(texSamplerUniform, 0);
 
         gl.uniform2f(sizeUniform, _vWidth, _vHeight);
@@ -163,10 +204,19 @@ function Framebuffer(gl, width, height)
         updateSizes();
 
 
+        let ext = gl.getExtension('WEBGL_depth_texture');
+        if(ext)
+        {
+            _depthExt = ext;
+            console.log(ext);
+            console.log(gl.DEPTH_STENCIL_ATTACHMENT)
+            console.log("Context has WEBGL_depth_texture");
+        }
         _framebuffer = gl.createFramebuffer();
 
         self.bind();
-        _texture = createTexture();
+        addTexture(0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE);
+        self.addDepthTexture();
         self.release();
     }()
 }
