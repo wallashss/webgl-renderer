@@ -669,7 +669,7 @@ function Renderer()
 		canvas.height = bounds.height;
 	}
 
-	this.onResize = function()
+	this.onResize = function(willDraw)
 	{
 		if(canvas.element)
 		{
@@ -678,7 +678,10 @@ function Renderer()
 			if(mainProgram)
 			{
 				gl.viewport(0, 0, canvas.width, canvas.height);
-				self.draw();
+				if(willDraw)
+				{
+					self.draw();
+				}
 			}
 		}
 	}
@@ -712,11 +715,6 @@ function Renderer()
 		self.updateViewBounds();
 
 		gl.viewport(0, 0, canvas.width, canvas.height);
-		
-		window.addEventListener("resize", (e)=>
-		{
-			self.onResize();
-		});
 		
 		self.loadShaders(Shaders.VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.DEFAULT_PROGRAM);
 
