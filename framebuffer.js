@@ -67,9 +67,30 @@ function Framebuffer(gl, width, height)
     //     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     // }
 
+    function updateSizes()
+    {
+        
+        let sw = Math.ceil(Math.log2(_width));
+        let sh = Math.ceil(Math.log2(_height));
+        _framebufferSize = Math.pow(2, Math.max(sw, sh));
+     
+        _vWidth = _width / _framebufferSize;
+        _vHeight = _height / _framebufferSize;
+
+        console.log(_width, _vWidth);
+        console.log(_height, _vHeight);
+
+    }
     function createTexture()
     {
         let texture = gl.createTexture();
+        buildTexture(texture);
+        return texture;
+        // gl.generateMipmap(gl.TEXTURE_2D);
+    }
+
+    function buildTexture(texture)
+    {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -78,15 +99,15 @@ function Framebuffer(gl, width, height)
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
 
         gl.bindTexture(gl.TEXTURE_2D, null);
-
-        return texture;
-        // gl.generateMipmap(gl.TEXTURE_2D);
     }
 
     this.resize = function(w, h)
     {
         _width = w;
         _height = h;
+
+        updateSizes();
+        buildTexture(_texture);
     }
 
     this.bind = function()
@@ -139,24 +160,14 @@ function Framebuffer(gl, width, height)
             createDefaultShader();
         }
 
-        let sw = Math.ceil(Math.log2(_width));
-        let sh = Math.ceil(Math.log2(_height));
-        _framebufferSize = Math.pow(2, Math.max(sw, sh));
-     
-        _vWidth = _width / _framebufferSize;
-        _vHeight = _height / _framebufferSize;
+        updateSizes();
+
 
         _framebuffer = gl.createFramebuffer();
+
         self.bind();
         _texture = createTexture();
         self.release();
-
-       
-        
-        // _texture = gl.createTexture();
-        // self.bind();
-
-
     }()
 }
 

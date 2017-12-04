@@ -123,29 +123,27 @@ varying vec2 pos;
 void main (void)
 {
     gl_Position = vec4(position, 0, 1);
-    // vPosition = position;
     pos = (position + vec2(1)) * 0.5;
 
-    pos.x = min(pos.x, size.x);
-     pos.y = min(pos.y, size.y);
-
-    // pos.y = -pos.y;
-
+    if(pos.x > 0.1) // extra check becouse of numerical precision...
+    {
+        pos.x =  size.x;
+    }
+    if(pos.y > 0.1)
+    {
+        pos.y = size.y;
+    }
 }
 `
 
 exports.FRAMEBUFFER_FRAGMENT_SHADER_SOURCE = 
 `
 precision mediump float;
-// varying vec2 vPosition;
 varying vec2 pos; 
 uniform sampler2D texSampler;
 
 void main(void)
 {
-    // vec2 pos = (vPosition + vec2(1)) * 0.5;
-    // pos.y = pos.y;
     gl_FragColor = texture2D(texSampler, pos);
-
 }
 `

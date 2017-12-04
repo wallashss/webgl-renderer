@@ -466,9 +466,8 @@ function Renderer()
 	this.draw = function()
 	{
 		// Clear screen
-		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		// aux.bind();
-		// aux.drawToScreen();
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		
 		if(batches.length == 0 && lines.length == 0)
 		{
@@ -668,8 +667,13 @@ function Renderer()
 	{
 		let bounds = canvas.element.getBoundingClientRect();
 		
+		canvas.element.width = bounds.width;
+		canvas.element.height = bounds.height;
 		canvas.width = bounds.width;
 		canvas.height = bounds.height;
+		aux.bind();
+		aux.resize(canvas.width, canvas.height);
+		aux.release();
 	}
 
 	this.onResize = function()
@@ -680,6 +684,7 @@ function Renderer()
 
 			if(mainProgram)
 			{
+				gl.viewport(0, 0, canvas.width, canvas.height);
 				self.draw();
 			}
 		}
@@ -718,8 +723,11 @@ function Renderer()
 			hasInstancing = true;
 		}
 
+		aux = new FrameBuffer(gl, 128, 128);
 		self.updateViewBounds();
 
+		gl.viewport(0, 0, canvas.width, canvas.height);
+		
 		window.addEventListener("resize", (e)=>
 		{
 			self.onResize();
@@ -761,7 +769,7 @@ function Renderer()
 
 		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-		aux = new FrameBuffer(gl, canvas.width, canvas.height);
+		
 
 		return true;
 	}
