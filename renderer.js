@@ -17,14 +17,20 @@ const mat4 = glMatrix.mat4;
 function Renderer()
 {
 	let self = this;
+	
 	let mainProgram = null;
+
 	let instanceProgram = null;
+	let pickProgram = null;
+	let instancePickProgram = null;
 	let programsMap = {}
+	
 	let dummyTexture = null;
 	let batches = [];
 	let lines = [];
 	let textureMap = {};
 	let hasInstancing = false;
+	let hasDrawBuffer = false;
 	let backgroundColor = {r: 0.5, g: 0.5, b: 0.5, a: 1.0};
 	let canvas = {width: 0, 
 				  height: 0, 
@@ -32,7 +38,8 @@ function Renderer()
 	let isAnimating = false;
 
 	let _viewMatrix = mat4.create();
-
+	
+	let drawPicking = false;
 	this.translation = vec3.create();
 	this.scale = vec3.fromValues(1.0, 1.0, 1.0);
 	this.rotation = mat4.create();
@@ -41,6 +48,9 @@ function Renderer()
 	let attribDivisors = {};
 
 	let instanceExt = null;
+
+	let _nextInstanceId = 1;
+
 	
 	function enableAttribs (attribs)
 	{
@@ -75,6 +85,15 @@ function Renderer()
 				}
 			}
 		}
+	}
+
+	function intToVec4(iValue)
+	{
+		let a1 = ((0xFF000000 & iValue) >> 24) /255.0;
+		let a2 = ((0x00FF0000 & iValue) >> 16) /255.0;
+		let a3 = ((0x0000FF00 & iValue) >> 8) /255.0;
+		let a4 = ((0x000000FF & iValue)) /255.0;
+		return vec4.fromValues(a1, a2, a3, a4);
 	}
 
 	function setAttribDivisors(attribs, size)
@@ -163,6 +182,7 @@ function Renderer()
 			let useTextureUniform = gl.getUniformLocation(program, "useTexture");
 			let unlitUniform = gl.getUniformLocation(program, "unlit");
 			let texSamplerUniform = gl.getUniformLocation(program, "texSampler");
+			let pickingUniform = gl.getUniformLocation(program, "picking");
 
 			let isInstance = programId === Renderer.INSTACE_PROGRAM;
 
@@ -179,11 +199,12 @@ function Renderer()
 					colorUniform: colorUniform,
 					useTextureUniform: useTextureUniform,
 					unlitUniform: unlitUniform,
+					pickingUniform: pickingUniform,
 					texSamplerUniform: texSamplerUniform,
 					id: programId,
 					attribs: attribs,
 					modelAttribs: modelAttribs,
-					isInstance: isInstance
+					isInstance: isInstance,
 					};
 
 			if(programId === Renderer.DEFAULT_PROGRAM)
@@ -194,9 +215,16 @@ function Renderer()
 			{
 				instanceProgram = newProgram;
 			}
+			else if(programId === Renderer.PICKING_PROGRAM)
+			{
+				pickProgram = newProgram;
+			}
+			else if(programId === Renderer.INSTANCE_PICKING_PROGRAM)
+			{
+				instanceProgram = newProgram;
+			}
 			programsMap[programId] = newProgram;
 			gl.useProgram(null);
-
 		}
 	}
 
@@ -265,16 +293,22 @@ function Renderer()
 			c = vec4.clone(color);
 		}
 		
+		let id = intToVec4(_nextInstanceId);
+		_nextInstanceId++;
 		
 		batches.push({mesh: mesh,
 				transform: t,
 				color: color,
+				id: id,
 				textureName: textureName, 
 				programId: Renderer.DEFAULT_PROGRAM});
 	}
 
 	function _addInstance(mesh, colors, matrices, textureName)
 	{
+		let id = intToVec4(_nextInstanceId);
+		console.log(id);
+		_nextInstanceId += matrices.length;
 		if(hasInstancing)
 		{
 			let modelBufferId = gl.createBuffer();
@@ -322,12 +356,14 @@ function Renderer()
 				}
 				gl.bufferData(gl.ARRAY_BUFFER, colorArray, gl.STATIC_DRAW);
 			}
+			
 
 			batches.push({mesh,
 				modelBufferId: modelBufferId,
 				instanceCount: instanceCount,
 				colorBufferId: colorBufferId,
 				textureName: textureName,
+				id: id,
 				programId: Renderer.INSTACE_PROGRAM});
 			
 		}
@@ -342,6 +378,7 @@ function Renderer()
 					transform: t,
 					color: c,
 					textureName: textureName,
+					id: id,
 					programId: Renderer.DEFAULT_PROGRAM});
 			}
 		}
@@ -495,9 +532,13 @@ function Renderer()
 		{
 			let b = batches[i];
 			let program = null;
-			if(!b.programId)
+			if(!b.programId || self.drawPicking)
 			{
 				program = mainProgram;
+			}
+			else if(self.drawPicking && b.programId === Renderer.INSTANCE_PICKING_PROGRAM )
+			{
+				program = instancePickProgram;
 			}
 			else if(programsMap.hasOwnProperty(b.programId))
 			{
@@ -513,7 +554,7 @@ function Renderer()
 			{
 				currentProgram = program;
 				enableAttribs(currentProgram.attribs);
-				gl.useProgram(currentProgram.program)
+				gl.useProgram(currentProgram.program);
 				
 				// Eye light position 
 				let eyeLightPosition = vec3.fromValues(0.0, 0.0, 0.0);
@@ -584,6 +625,7 @@ function Renderer()
 				}
 			}
 			
+			
 			if(currentElementBufferId !== b.mesh.elementsBufferId)
 			{
 				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.mesh.elementsBufferId);
@@ -625,6 +667,11 @@ function Renderer()
 					blendEnabled = true;
 				}
 				gl.uniform4fv(currentProgram.colorUniform, b.color);
+			}
+
+			if(self.drawPicking)
+			{
+				gl.uniform4fv(program.pickingUniform, b.id);
 			}
 
 			
@@ -711,6 +758,11 @@ function Renderer()
 			instanceExt = gl.getExtension('ANGLE_instanced_arrays');			
 			hasInstancing = true;
 		}
+
+		if(gl.getExtension("WEBGL_draw_buffers"))
+		{
+			hasDrawBuffer = true;
+		}
 		
 		self.updateViewBounds();
 
@@ -721,6 +773,16 @@ function Renderer()
 		if(hasInstancing)
 		{
 			self.loadShaders(Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.INSTACE_PROGRAM);
+		}
+
+		if(hasDrawBuffer)
+		{
+			self.loadShaders(Shaders.VERTEX_SHADER_SOURCE, Shaders.PICK_FRAGMENT_SHADER_SOURCE, Renderer.PICKING_PROGRAM);
+		}
+
+		if(hasDrawBuffer && hasInstancing)
+		{
+			self.loadShaders(Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.PICK_FRAGMENT_SHADER_SOURCE, Renderer.INSTANCE_PICKING_PROGRAM);
 		}
 		
 		gl.clearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
@@ -748,6 +810,26 @@ function Renderer()
 		return true;
 	}
 	
+	this.setDrawPicking = function(drawPicking)
+	{
+		if(hasDrawBuffer)
+		{
+			self.drawPicking = drawPicking;
+
+			if(self.drawPicking)
+			{
+				mainProgram = programsMap[Renderer.PICKING_PROGRAM];
+				instanceProgram = programsMap[Renderer.INSTANCE_PICKING_PROGRAM];
+			}
+			else
+			{
+				mainProgram = programsMap[Renderer.DEFAULT_PROGRAM];
+				instanceProgram = programsMap[Renderer.INSTACE_PROGRAM];
+			}
+			// mainProgram = programsMap[Renderer.DEFAULT_PROGRAM];
+
+		}
+	}
 	this.getContext = function()
 	{
 		return gl;
@@ -766,5 +848,7 @@ function Renderer()
 
 Renderer.DEFAULT_PROGRAM = "_default";
 Renderer.INSTACE_PROGRAM = "_instance";
+Renderer.PICKING_PROGRAM = "_picking";
+Renderer.INSTANCE_PICKING_PROGRAM = "_instance_picking";
 
 module.exports = Renderer;
