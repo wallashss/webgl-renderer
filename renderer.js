@@ -103,13 +103,11 @@ function Renderer()
 		out[1] = (0x00FF0000 & iValue) >> 16 ;
 		out[2] = (0x0000FF00 & iValue) >> 8 ;
 		out[3] = (0x000000FF & iValue);
-		console.log(out);
 		return out;
 	}
 
 	function vec4fToVec4b(v)
 	{
-
 		let out = new Uint8Array(4);
 		out[0] = Math.min(Math.max(v[0], 0), 1) * 255;
 		out[1] = Math.min(Math.max(v[1], 0), 1) * 255;
@@ -409,7 +407,7 @@ function Renderer()
 			let colorBufferId = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, colorBufferId);
 
-			if(colors.constructor === Float32Array)
+			if(colors.constructor === Uint8Array)
 			{
 				gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
 			}
@@ -452,13 +450,13 @@ function Renderer()
 			throw err;
 		}
 
-		if((matrices.constructor != Float32Array || colors.constructor != Float32Array) && 
+		if((matrices.constructor != Float32Array || colors.constructor != Uint8Array) && 
 			colors.length !== matrices.length)
 		{
 			console.log("Colors and instances must have same length");
 			return;
 		}
-		if((matrices.constructor === Float32Array || colors.constructor === Float32Array) && 
+		if((matrices.constructor === Float32Array || colors.constructor === Uint8Array) && 
 			(matrices.length / 16 !== colors.length /4 ))
 		{
 			console.log("Colors and instances must have same length");
@@ -566,6 +564,7 @@ function Renderer()
 	
 		// Bind shader
 		
+		let identity = mat4.create();
 		let m = mat4.create();
 		let v = _viewMatrix;
 		let p = mat4.create();
@@ -627,6 +626,11 @@ function Renderer()
 			{
 				mat4.copy(m, b.transform);
 			}
+			else
+			{
+				mat4.identity(m);
+			}
+
 		
 			let normalMatrix = mat4.create();
 			
