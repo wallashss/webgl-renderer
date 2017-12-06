@@ -39,7 +39,7 @@ function Renderer()
 
 	let _viewMatrix = mat4.create();
 	
-	let drawPicking = false;
+	this.drawPicking = false;
 	this.translation = vec3.create();
 	this.scale = vec3.fromValues(1.0, 1.0, 1.0);
 	this.rotation = mat4.create();
@@ -79,7 +79,6 @@ function Renderer()
 			{
 				if(attribDivisors[a] > 0)
 				{
-					
 					instanceExt.vertexAttribDivisorANGLE(a, 0);
 					attribDivisors[a] = 0;
 				}
@@ -93,7 +92,31 @@ function Renderer()
 		let a2 = ((0x00FF0000 & iValue) >> 16) /255.0;
 		let a3 = ((0x0000FF00 & iValue) >> 8) /255.0;
 		let a4 = ((0x000000FF & iValue)) /255.0;
-		return vec4.fromValues(a1, a2, a3, a4);
+		let out = vec4.fromValues(a1, a2, a3, a4);
+		return out;
+	}
+
+	function intToVec4b(iValue)
+	{
+		let out = new Uint8Array(4);
+		out[0] = (0xFF000000 & iValue) >> 24 ;
+		out[1] = (0x00FF0000 & iValue) >> 16 ;
+		out[2] = (0x0000FF00 & iValue) >> 8 ;
+		out[3] = (0x000000FF & iValue);
+		console.log(out);
+		return out;
+	}
+
+	function vec4fToVec4b(v)
+	{
+
+		let out = new Uint8Array(4);
+		out[0] = Math.min(Math.max(v[0], 0), 1) * 255;
+		out[1] = Math.min(Math.max(v[1], 0), 1) * 255;
+		out[2] = Math.min(Math.max(v[2], 0), 1) * 255;
+		out[3] = Math.min(Math.max(v[3], 0), 1) * 255;
+		
+		return out;
 	}
 
 	function setAttribDivisors(attribs, size)
@@ -139,6 +162,8 @@ function Renderer()
 
 			let colorInstance = gl.getAttribLocation(program, "colorInstance");
 
+			let pickingInstance = gl.getAttribLocation(program, "pickingInstance");
+
 			let attribs = [];
 			if(positionVertex >= 0)
 			{
@@ -157,6 +182,11 @@ function Renderer()
 			if(colorInstance >= 0)
 			{
 				attribs.push(colorInstance);
+			}
+
+			if(pickingInstance >= 0)
+			{
+				attribs.push(pickingInstance);
 			}
 
 			let modelAttribs = []
@@ -184,7 +214,7 @@ function Renderer()
 			let texSamplerUniform = gl.getUniformLocation(program, "texSampler");
 			let pickingUniform = gl.getUniformLocation(program, "picking");
 
-			let isInstance = programId === Renderer.INSTACE_PROGRAM;
+			let isInstance = programId === Renderer.INSTACE_PROGRAM || programId === Renderer.INSTANCE_PICKING_PROGRAM;
 
 			let newProgram = {program: program,
 					positionVertex: positionVertex,
@@ -192,6 +222,7 @@ function Renderer()
 					texcoord: texcoord,
 					model: model,
 					colorInstance: colorInstance,
+					pickingInstance: pickingInstance,
 					modelViewProjectionUniform: modelViewProjection,
 					modelViewUniform: modelViewUniform,
 					normalMatrixUniform: normalMatrixUniform,
@@ -293,7 +324,8 @@ function Renderer()
 			c = vec4.clone(color);
 		}
 		
-		let id = intToVec4(_nextInstanceId);
+		let idx = _nextInstanceId;
+		let id = intToVec4(idx);
 		_nextInstanceId++;
 		
 		batches.push({mesh: mesh,
@@ -302,18 +334,38 @@ function Renderer()
 				id: id,
 				textureName: textureName, 
 				programId: Renderer.DEFAULT_PROGRAM});
+		return idx;
 	}
 
 	function _addInstance(mesh, colors, matrices, textureName)
 	{
-		let id = intToVec4(_nextInstanceId);
-		console.log(id);
-		_nextInstanceId += matrices.length;
-		if(hasInstancing)
+		let outIdx = _nextInstanceId;
+		let out = [];
+		if(!hasInstancing || matrices.length === 1)
+		{
+			_nextInstanceId += matrices.length;
+			for(let i = 0; i < matrices.length; i++)
+			{
+				out.push(outIdx + i);
+				let id = intToVec4(outIdx + i);
+				let t = mat4.clone(matrices[i]);
+				let c = vec4.clone(colors[i]);
+	
+				batches.push({mesh,
+					transform: t,
+					color: c,
+					textureName: textureName,
+					id: id,
+					programId: Renderer.DEFAULT_PROGRAM});
+			}
+			return outIdx;
+		}
+		else
 		{
 			let modelBufferId = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, modelBufferId);
 
+			// Upload matrices
 			let instanceCount = 0;
 			if(matrices.constructor === Float32Array)
 			{
@@ -323,6 +375,7 @@ function Renderer()
 			else
 			{
 				instanceCount = matrices.length;
+				
 				let matricesArray = new Float32Array(matrices.length * 16);
 				for(let i = 0; i < matrices.length; i++)
 				{
@@ -335,7 +388,24 @@ function Renderer()
 				gl.bufferData(gl.ARRAY_BUFFER, matricesArray, gl.STATIC_DRAW);
 			}
 
+			// Upload ids
+			_nextInstanceId += instanceCount;
+			let pickBufferId = gl.createBuffer();
+			let pickArray = new Uint8Array(instanceCount * 4);
+			for(let i = 0 ; i < instanceCount; i++)
+			{
+				let idx = outIdx + i; 
+				out.push(idx);
+				let p = intToVec4b(idx);
+				for(let j = 0; j < 4; j++)
+				{
+					pickArray[i*4 + j] = p[j];
+				}
+			}
+			gl.bindBuffer(gl.ARRAY_BUFFER, pickBufferId);
+			gl.bufferData(gl.ARRAY_BUFFER, pickArray, gl.STATIC_DRAW);
 
+			// Upload colors
 			let colorBufferId = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, colorBufferId);
 
@@ -345,10 +415,10 @@ function Renderer()
 			}
 			else
 			{
-				let colorArray = new Float32Array(colors.length * 4);
+				let colorArray = new Uint8Array(colors.length * 4);
 				for(let i = 0; i < colors.length; i++)
 				{
-					let c = colors[i];
+					let c = vec4fToVec4b(colors[i]);
 					for(let j = 0; j < 4; j++)
 					{
 						colorArray[i*4 + j] = c[j];
@@ -356,32 +426,16 @@ function Renderer()
 				}
 				gl.bufferData(gl.ARRAY_BUFFER, colorArray, gl.STATIC_DRAW);
 			}
-			
-
+		
 			batches.push({mesh,
 				modelBufferId: modelBufferId,
 				instanceCount: instanceCount,
 				colorBufferId: colorBufferId,
 				textureName: textureName,
-				id: id,
-				programId: Renderer.INSTACE_PROGRAM});
-			
+				pickBufferId: pickBufferId,
+				programId: Renderer.INSTACE_PROGRAM});	
 		}
-		else
-		{
-			for(let i  =0 ; i < matrices.length; i++)
-			{
-				let t = mat4.clone(matrices[i]);
-				let c = vec4.clone(colors[i]);
-	
-				batches.push({mesh,
-					transform: t,
-					color: c,
-					textureName: textureName,
-					id: id,
-					programId: Renderer.DEFAULT_PROGRAM});
-			}
-		}
+		return out;
 
 	}
 	this.addInstances = function(mesh, colors, matrices, textureName)
@@ -525,6 +579,7 @@ function Renderer()
 		let currentModelBufferId = null;
 		let currentColorBufferId = null;
 		let currentTextureId = null;
+		let currentPickBufferId = null;
 		let blendEnabled = false;
 
 		gl.activeTexture(gl.TEXTURE0);
@@ -532,13 +587,17 @@ function Renderer()
 		{
 			let b = batches[i];
 			let program = null;
-			if(!b.programId || self.drawPicking)
+			if(!b.programId)
 			{
 				program = mainProgram;
 			}
-			else if(self.drawPicking && b.programId === Renderer.INSTANCE_PICKING_PROGRAM )
+			if(b.programId === Renderer.DEFAULT_PROGRAM && self.drawPicking)
 			{
-				program = instancePickProgram;
+				program = pickProgram;
+			}
+			else if(b.programId === Renderer.INSTACE_PROGRAM)
+			{
+				program = instanceProgram;
 			}
 			else if(programsMap.hasOwnProperty(b.programId))
 			{
@@ -546,7 +605,7 @@ function Renderer()
 			}
 			else
 			{
-				console.log("Program not found!");
+				console.log("Error! Program not found!");
 				continue;
 			}
 
@@ -596,7 +655,6 @@ function Renderer()
 				gl.vertexAttribPointer(currentProgram.normalVertex, 3, gl.FLOAT, false, vertexSize, 3 * 4); // 3 components x 4 bytes per float		
 				gl.vertexAttribPointer(currentProgram.texcoord, 2, gl.FLOAT, false, vertexSize, 3 * 4 + 3 * 4);
 
-				
 				currentVertexBufferId = b.mesh.verticesBufferId;
 			}
 
@@ -617,14 +675,22 @@ function Renderer()
 
 				if(currentColorBufferId !== b.colorBufferId)
 				{
-					let colorSize = 4 * 4;
+					let colorSize = 4;
 					gl.bindBuffer(gl.ARRAY_BUFFER, b.colorBufferId);
-					gl.vertexAttribPointer(currentProgram.colorInstance, 4, gl.FLOAT, false, colorSize, 0);
+					gl.vertexAttribPointer(currentProgram.colorInstance, 4, gl.UNSIGNED_BYTE, true, colorSize, 0);
 					setAttribDivisors([currentProgram.colorInstance], 1);
 					currentColorBufferId = b.colorBufferId;
 				}
+
+				if(currentPickBufferId !== b.pickBufferId)
+				{
+					let pickSize = 4;
+					gl.bindBuffer(gl.ARRAY_BUFFER, b.pickBufferId);
+					gl.vertexAttribPointer(currentProgram.pickingInstance, 4, gl.UNSIGNED_BYTE, true, pickSize, 0);
+					setAttribDivisors([currentProgram.pickingInstance], 1);
+					currentPickBufferId = b.pickBufferId;
+				}
 			}
-			
 			
 			if(currentElementBufferId !== b.mesh.elementsBufferId)
 			{
@@ -669,11 +735,10 @@ function Renderer()
 				gl.uniform4fv(currentProgram.colorUniform, b.color);
 			}
 
-			if(self.drawPicking)
+			if(self.drawPicking && !currentProgram.isInstance)
 			{
 				gl.uniform4fv(program.pickingUniform, b.id);
 			}
-
 			
 			if(currentProgram.isInstance)
 			{
@@ -733,15 +798,16 @@ function Renderer()
 		}
 	}
 
-	this.setBackgroundColor = function(r, g, b)
+	this.setBackgroundColor = function(r, g, b, a)
 	{
 		backgroundColor.r = r;
 		backgroundColor.g = g;
 		backgroundColor.b = b;
+		backgroundColor.a = a;
 
 		if(gl)
 		{
-			gl.clearColor(r, g, b, 1);
+			gl.clearColor(r, g, b, a);
 		}
 		
 	}
@@ -820,12 +886,17 @@ function Renderer()
 			{
 				mainProgram = programsMap[Renderer.PICKING_PROGRAM];
 				instanceProgram = programsMap[Renderer.INSTANCE_PICKING_PROGRAM];
+				if(gl)
+				{
+					self.setBackgroundColor(0, 0, 0, 0);
+				}
 			}
 			else
 			{
 				mainProgram = programsMap[Renderer.DEFAULT_PROGRAM];
 				instanceProgram = programsMap[Renderer.INSTACE_PROGRAM];
 			}
+
 			// mainProgram = programsMap[Renderer.DEFAULT_PROGRAM];
 
 		}

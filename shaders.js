@@ -41,14 +41,14 @@ attribute vec3 normal;
 attribute vec2 texcoord;
 attribute highp mat4 model;
 attribute vec4 colorInstance;
+attribute vec4 pickingInstance;
 
 uniform highp mat4 modelViewProjection;
 uniform highp mat4 modelView;
 uniform highp mat4 normalMatrix;
 uniform vec4 color;
-uniform highp vec4 picking;
 
-varying vec4 vPicking;
+varying highp vec4 vPicking;
 varying vec4 currentColor;
 varying vec3 vPosition;
 varying vec3 vNormal;
@@ -66,7 +66,7 @@ void main (void)
     vec4 vPosition4 = modelView  * model * vec4(position, 1.0);
     vPosition = vPosition4.xyz / vPosition4.w;
     
-    vPicking = vec4(0);
+    vPicking = pickingInstance;
     vNormal = mat3(modelView) * mat3(model) * normal;
     vNormal = normalize(vNormal);
 }
@@ -122,7 +122,7 @@ exports.PICK_FRAGMENT_SHADER_SOURCE =
 
 precision highp float;
 
-varying highp vec4 currentColor;
+varying vec4 currentColor;
 varying vec3 vNormal;
 varying vec2 vTexcoord;
 varying vec3 vPosition;
@@ -137,7 +137,7 @@ void main(void)
 {
     if(unlit >0.0)
     {
-        gl_FragData[0] = currentColor;
+        gl_FragData[1] = currentColor;
     }
     else
     {
@@ -153,15 +153,15 @@ void main(void)
         vec3 illumination = diffuse + ambient;
         if(useTexture == 0.0)
         {
-            gl_FragData[0] = vec4(illumination * currentColor.rgb, currentColor.a);
+            gl_FragData[1] = vec4(illumination * currentColor.rgb, currentColor.a);
         }
         else
         {
             vec4 texel = texture2D(texSampler, vTexcoord);
-            gl_FragData[0] = vec4(illumination * currentColor.rgb * texel.rgb, currentColor.a);            
+            gl_FragData[1] = vec4(illumination * currentColor.rgb * texel.rgb, currentColor.a);            
         }
-        gl_FragData[1] = currentColor;
     }
+    gl_FragData[0] = vPicking;
 }
 `
 
@@ -177,15 +177,6 @@ void main (void)
 {
     gl_Position = vec4(position, 0, 1);
     pos = (position + vec2(1)) * 0.5;
-
-    // if(pos.x > 0.1) // extra check because of numerical precision...
-    // {
-    //     pos.x =  size.x;
-    // }
-    // if(pos.y > 0.1)
-    // {
-    //     pos.y = size.y;
-    // }
 }
 `
 

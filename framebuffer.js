@@ -171,13 +171,24 @@ function Framebuffer(gl, width, height)
         gl.useProgram(null);
     }
 
-
     this.loadDefault  = function()
     {
         self.bind();
         self.addTexture(0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE);
         self.addDepthTexture();
         self.release();
+    }
+
+    this.pick = function(x, y, idx)
+    {
+        if(idx === undefined || idx === null)
+        {
+            idx = 0;
+        }
+        let pixels = new Uint8Array(4);
+        gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+        return pixels;
     }
 
     let init = function()
