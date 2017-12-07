@@ -527,7 +527,6 @@ function Renderer()
 			else
 			{
 				let offset =  idx - b.firstIdx;
-				console.log(offset);
 				let c = vec4fToVec4b(color); 
 				gl.bindBuffer(gl.ARRAY_BUFFER, b.colorBufferId);
 				gl.bufferSubData(gl.ARRAY_BUFFER, offset * 4, c);
