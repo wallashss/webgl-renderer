@@ -93,7 +93,7 @@ function Framebuffer(gl, width, height)
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, _width, _height, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
             gl.framebufferTexture2D(gl.FRAMEBUFFER,  gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, _depthTexture, 0);
-            // gl.bindTexture(gl.TEXTURE_2D, null);
+            gl.bindTexture(gl.TEXTURE_2D, null);
         }
     }
 

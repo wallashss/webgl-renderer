@@ -26,7 +26,8 @@ function Renderer()
 	let programsMap = {}
 	
 	let dummyTexture = null;
-	let batches = [];
+	let batchesKeys = [];
+	let batches = {};
 	let lines = [];
 	let textureMap = {};
 	let hasInstancing = false;
@@ -50,6 +51,7 @@ function Renderer()
 	let instanceExt = null;
 
 	let _nextInstanceId = 1;
+	
 
 	
 	function enableAttribs (attribs)
@@ -326,35 +328,43 @@ function Renderer()
 		let id = intToVec4(idx);
 		_nextInstanceId++;
 		
-		batches.push({mesh: mesh,
-				transform: t,
-				color: color,
-				id: id,
-				textureName: textureName, 
-				programId: Renderer.DEFAULT_PROGRAM});
+		let b = {mesh: mesh,
+			transform: t,
+			color: color,
+			id: id,
+			textureName: textureName, 
+			programId: Renderer.DEFAULT_PROGRAM,
+			isInstance: false};
+
+		batchesKeys.push(idx);
+		batches[idx] = b;
 		return idx;
 	}
 
 	function _addInstance(mesh, colors, matrices, textureName)
 	{
-		let outIdx = _nextInstanceId;
+		const outIdx = _nextInstanceId;
 		let out = [];
 		if(!hasInstancing || matrices.length === 1)
 		{
 			_nextInstanceId += matrices.length;
 			for(let i = 0; i < matrices.length; i++)
 			{
-				out.push(outIdx + i);
-				let id = intToVec4(outIdx + i);
+				let idx = outIdx + i; 
+				out.push(idx);
+				let id = intToVec4(idx);
 				let t = mat4.clone(matrices[i]);
 				let c = vec4.clone(colors[i]);
 	
-				batches.push({mesh,
+				let b = {mesh,
 					transform: t,
 					color: c,
 					textureName: textureName,
 					id: id,
-					programId: Renderer.DEFAULT_PROGRAM});
+					programId: Renderer.DEFAULT_PROGRAM,
+					isInstance: false}
+				batchesKeys.push(idx);
+				batches[idx] = b;
 			}
 			return outIdx;
 		}
@@ -424,17 +434,25 @@ function Renderer()
 				}
 				gl.bufferData(gl.ARRAY_BUFFER, colorArray, gl.STATIC_DRAW);
 			}
-		
-			batches.push({mesh,
+
+			let b = {mesh,
 				modelBufferId: modelBufferId,
 				instanceCount: instanceCount,
 				colorBufferId: colorBufferId,
 				textureName: textureName,
+				firstIdx: outIdx,
 				pickBufferId: pickBufferId,
-				programId: Renderer.INSTACE_PROGRAM});	
+				programId: Renderer.INSTACE_PROGRAM,
+				isInstance: true}
+		
+			for(let i = 0 ; i < instanceCount; i++)
+			{
+				let idx = outIdx + i;
+				batches[idx] = b;	
+			}
+			batchesKeys.push(outIdx);
 		}
 		return out;
-
 	}
 	this.addInstances = function(mesh, colors, matrices, textureName)
 	{
@@ -462,7 +480,7 @@ function Renderer()
 			console.log("Colors and instances must have same length");
 			return;
 		}
-		_addInstance(mesh, colors, matrices, textureName);
+		return _addInstance(mesh, colors, matrices, textureName);
 
 	}
 	this.addObjectInstances = function(vertices, elements, colors, matrices, textureName)
@@ -494,6 +512,28 @@ function Renderer()
 
 		let mesh = self.uploadMesh(vertices, elements);
 		_addInstance(mesh, colors, matrices, textureName);
+	}
+
+	this.updateColor = function(idx, color)
+	{
+		if(batches.hasOwnProperty(idx))
+		{
+			let b = batches[idx];
+
+			if(!b.isInstance)
+			{
+				b.color = color;
+			}
+			else
+			{
+				let offset =  idx - b.firstIdx;
+				console.log(offset);
+				let c = vec4fToVec4b(color); 
+				gl.bindBuffer(gl.ARRAY_BUFFER, b.colorBufferId);
+				gl.bufferSubData(gl.ARRAY_BUFFER, offset * 4, c);
+				gl.bindBuffer(gl.ARRAY_BUFFER, null);
+			}
+		}
 	}
 	
 	this.addLines = function(vertices, color)
@@ -543,13 +583,14 @@ function Renderer()
 
 	this.clearBatches = function()
 	{
-		for(let i = 0; i < batches.length; i++)
+		for(let i = 0; i < batchesKeys.length; i++)
 		{
-			let b = batches[i];
+			let b = batches[batchesKeys[i]];
 			gl.deleteBuffer(b.verticesBufferId);
 			gl.deleteBuffer(b.elementsBufferId);
 		}
-		batches = [];
+		batches = {};
+		batchesKeys = [];
 	}
 
 	this.draw = function()
@@ -582,9 +623,9 @@ function Renderer()
 		let blendEnabled = false;
 
 		gl.activeTexture(gl.TEXTURE0);
-		for(let i = 0; i < batches.length; i++)
+		for(let i = 0; i < batchesKeys.length; i++)
 		{
-			let b = batches[i];
+			let b = batches[batchesKeys[i]];
 			let program = null;
 			if(!b.programId)
 			{
@@ -754,7 +795,10 @@ function Renderer()
 			}
 		}
 
-		gl.uniform1f(currentProgram.unlitUniform, 1.0);		
+		if(currentProgram)
+		{
+			gl.uniform1f(currentProgram.unlitUniform, 1.0);		
+		}
 		for(let i =0 ; i < lines.length; i++)
 		{
 			let l = lines[i];
