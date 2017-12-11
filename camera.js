@@ -129,6 +129,7 @@ function Camera()
 			
 			element.addEventListener("wheel", function(e)
 			{
+
 				let delta = 0.0;
 				if(e.deltaMode == WheelEvent.DOM_DELTA_PIXEL)
 				{
@@ -149,7 +150,20 @@ function Camera()
 						delta = -10;
 					}
 				}
-				self.zoom(delta * 0.001);
+				if(manipulatorType === EXAMINE_MANIPULATOR_TYPE)
+				{
+					self.zoom(delta * 0.001);
+				}
+				else if(manipulatorType === FLY_MANIPULATOR_TYPE)
+				{
+					let deltaV = delta * velocityScale * 0.1;
+					velocity += deltaV;
+					if(velocity < Math.abs(deltaV))
+					{
+						velocity = Math.abs(deltaV);
+					}
+					state.velocity = vec3.fromValues(velocity, velocity, velocity);
+				}
 			});
 			
 			// WORKAROUND
@@ -240,7 +254,8 @@ function Camera()
 	this.setVelocity = function(newVelocity)
 	{
 		velocityScale = newVelocity;
-		state.velocity = vec3.fromValues(velocity * velocityScale, velocity * velocityScale, velocity * velocityScale);
+		velocity = newVelocity;
+		state.velocity = vec3.fromValues(velocity, velocity, velocity);
 	}
 	
 	var init = function()
