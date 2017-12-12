@@ -1045,6 +1045,11 @@ function Renderer()
 	{
 		return gl;
 	}
+
+	this.setNextId = function(id)
+	{
+		_nextInstanceId = id;
+	}
 	
 	this.setViewMatrix = function(viewMatrix)
 	{

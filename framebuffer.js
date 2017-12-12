@@ -147,7 +147,7 @@ function Framebuffer(gl, width, height)
             console.log("Framebuffer with no textures!");
             return;
         }
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.disable(gl.DEPTH_TEST);
         gl.useProgram(Framebuffer.defaultProgram);
         
         const vertexSize = 2 * 4
@@ -170,6 +170,7 @@ function Framebuffer(gl, width, height)
         gl.disableVertexAttribArray(Framebuffer.defaultAttrib);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.useProgram(null);
+        gl.enable(gl.DEPTH_TEST);
     }
 
     this.loadDefault  = function()
