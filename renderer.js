@@ -319,7 +319,7 @@ function Renderer()
 		}
 		
 		let c = vec4.fromValues(0.8, 0.8, 0.8, 1.0);
-		if(!color)
+		if(color)
 		{
 			c = vec4.clone(color);
 		}
@@ -330,7 +330,7 @@ function Renderer()
 		
 		let b = {mesh: mesh,
 			transform: t,
-			color: color,
+			color: c,
 			id: id,
 			textureName: textureName, 
 			programId: Renderer.DEFAULT_PROGRAM,
@@ -345,6 +345,8 @@ function Renderer()
 	{
 		const outIdx = _nextInstanceId;
 		let out = [];
+
+		let useBlending = false;
 		if(!hasInstancing || matrices.length === 1)
 		{
 			_nextInstanceId += matrices.length;
@@ -419,6 +421,15 @@ function Renderer()
 
 			if(colors.constructor === Uint8Array)
 			{
+				let colorsCount = colors.length / 4;
+				for(let i = 0; i < colorsCount; i++)
+				{
+					if(colors[i*4+3] < 255)
+					{
+						useBlending = true;
+						break;
+					}
+				}
 				gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
 			}
 			else
@@ -430,7 +441,12 @@ function Renderer()
 					for(let j = 0; j < 4; j++)
 					{
 						colorArray[i*4 + j] = c[j];
+						if(j == 3 && c[j] < 1.0)
+						{
+							useBlending = true;
+						}
 					}
+					
 				}
 				gl.bufferData(gl.ARRAY_BUFFER, colorArray, gl.STATIC_DRAW);
 			}
@@ -442,6 +458,7 @@ function Renderer()
 				textureName: textureName,
 				firstIdx: outIdx,
 				pickBufferId: pickBufferId,
+				useBlending: useBlending,
 				programId: Renderer.INSTACE_PROGRAM,
 				isInstance: true}
 		
@@ -766,17 +783,32 @@ function Renderer()
 
 			if(!currentProgram.isInstance)
 			{
-				if(b.color >= 1.0 && blendEnabled)
+				if(b.color.a >= 1.0 && blendEnabled)
 				{
 					gl.disable(gl.BLEND);
 					blendEnabled = false;
 				}
-				else if(b.color < 1.0 && !blendEnabled)
+				else if(b.color.a < 1.0 && !blendEnabled)
 				{
 					gl.enable(gl.BLEND);
+					gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 					blendEnabled = true;
 				}
 				gl.uniform4fv(currentProgram.colorUniform, b.color);
+			}
+			else
+			{
+				if(!b.useBlending && blendEnabled)
+				{
+					gl.disable(gl.BLEND);
+					blendEnabled = false;
+				}
+				else if(b.useBlending && !blendEnabled)
+				{
+					gl.enable(gl.BLEND);
+					gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+					blendEnabled = true;
+				}
 			}
 
 			if(self.drawPicking && !currentProgram.isInstance)
@@ -865,8 +897,13 @@ function Renderer()
 		if(gl)
 		{
 			gl.clearColor(r, g, b, a);
-		}
-		
+		}		
+	}
+
+	this.getSharedRenderer = function()
+	{
+	
+
 	}
 
 	this.load = function(canvasElement)
@@ -927,8 +964,6 @@ function Renderer()
 		gl.bindTexture(gl.TEXTURE_2D, null);
 
 		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-		
 
 		return true;
 	}
