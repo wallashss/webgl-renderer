@@ -51,7 +51,7 @@ function Renderer()
 	let instanceExt = null;
 
 	let _nextInstanceId = 1;
-	
+	let disableClear = false;
 
 	
 	function enableAttribs (attribs)
@@ -240,25 +240,30 @@ function Renderer()
 					isInstance: isInstance,
 					};
 
-			if(programId === Renderer.DEFAULT_PROGRAM)
-			{
-				mainProgram = newProgram;
-			}
-			else if(programId === Renderer.INSTACE_PROGRAM)
-			{
-				instanceProgram = newProgram;
-			}
-			else if(programId === Renderer.PICKING_PROGRAM)
-			{
-				pickProgram = newProgram;
-			}
-			else if(programId === Renderer.INSTANCE_PICKING_PROGRAM)
-			{
-				instanceProgram = newProgram;
-			}
-			programsMap[programId] = newProgram;
+			self.addProgram(newProgram, programId)
 			gl.useProgram(null);
 		}
+	}
+
+	this.addProgram = function(newProgram, programId)
+	{
+		if(programId === Renderer.DEFAULT_PROGRAM)
+		{
+			mainProgram = newProgram;
+		}
+		else if(programId === Renderer.INSTACE_PROGRAM)
+		{
+			instanceProgram = newProgram;
+		}
+		else if(programId === Renderer.PICKING_PROGRAM)
+		{
+			pickProgram = newProgram;
+		}
+		else if(programId === Renderer.INSTANCE_PICKING_PROGRAM)
+		{
+			instancePickProgram = newProgram;
+		}
+		programsMap[programId] = newProgram;
 	}
 
 	this.uploadBuffer = function(vertices)
@@ -611,10 +616,14 @@ function Renderer()
 		batchesKeys = [];
 	}
 
+
 	this.draw = function()
 	{
 		// Clear screen
-		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		if(!disableClear)
+		{
+			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		}
 		
 		if(batches.length == 0 && lines.length == 0)
 		{
@@ -889,6 +898,11 @@ function Renderer()
 		}
 	}
 
+	this.setDisableClear = function(disable)
+	{
+		disableClear = disable;
+	}
+
 	this.setBackgroundColor = function(r, g, b, a)
 	{
 		backgroundColor.r = r;
@@ -902,18 +916,37 @@ function Renderer()
 		}		
 	}
 
-	this.getSharedRenderer = function()
+	this.setContext = function(context)
 	{
-	
-
+		gl = context;
 	}
 
-	this.load = function(canvasElement)
+	this.setDummyTexture = function(texture)
 	{
-		canvas.element = canvasElement;
+		dummyTexture = texture;
+	}
 
-		gl = canvasElement.getContext("webgl");
+	this.getSharedRenderer = function()
+	{
+		let newRenderer = new Renderer();
 
+		newRenderer.loadExtensions();
+
+		newRenderer.setContext(gl);
+		
+		newRenderer.setDummyTexture(dummyTexture);
+
+		newRenderer.setCanvasElement(canvas.element);
+
+		newRenderer.addProgram(mainProgram, Renderer.DEFAULT_PROGRAM);
+		newRenderer.addProgram(instanceProgram, Renderer.INSTACE_PROGRAM);
+		newRenderer.addProgram(pickProgram, Renderer.PICKING_PROGRAM);
+		newRenderer.addProgram(instancePickProgram, Renderer.INSTANCE_PICKING_PROGRAM);
+		return newRenderer;
+	}
+
+	this.loadExtensions = function()
+	{
 		if(gl.getExtension("ANGLE_instanced_arrays"))
 		{
 			console.log("Context has ANGLE_instanced_arrays");
@@ -925,9 +958,22 @@ function Renderer()
 		{
 			hasDrawBuffer = true;
 		}
-		
-		self.updateViewBounds();
+	}
 
+	this.setCanvasElement = function(canvasElement)
+	{
+		canvas.element = canvasElement;
+		self.updateViewBounds();
+	}
+
+	this.load = function(canvasElement)
+	{
+		self.setCanvasElement(canvasElement);
+		
+		gl = canvasElement.getContext("webgl");
+		
+		self.loadExtensions();
+		
 		gl.viewport(0, 0, canvas.width, canvas.height);
 		
 		self.loadShaders(Shaders.VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.DEFAULT_PROGRAM);
