@@ -90,21 +90,23 @@ function Renderer()
 
 	function intToVec4(iValue)
 	{
+		iValue = iValue << 8;
 		let a1 = ((0xFF000000 & iValue) >> 24) /255.0;
 		let a2 = ((0x00FF0000 & iValue) >> 16) /255.0;
 		let a3 = ((0x0000FF00 & iValue) >> 8) /255.0;
-		let a4 = ((0x000000FF & iValue)) /255.0;
-		let out = vec4.fromValues(a1, a2, a3, a4);
+		// let a4 = ((0x000000FF & iValue)) /255.0;
+		let out = vec4.fromValues(a1, a2, a3, 1);
 		return out;
 	}
 
 	function intToVec4b(iValue)
 	{
+		iValue = iValue << 8;
 		let out = new Uint8Array(4);
 		out[0] = (0xFF000000 & iValue) >> 24 ;
 		out[1] = (0x00FF0000 & iValue) >> 16 ;
 		out[2] = (0x0000FF00 & iValue) >> 8 ;
-		out[3] = (0x000000FF & iValue);
+		out[3] = 255;
 		return out;
 	}
 
@@ -324,7 +326,7 @@ function Renderer()
 			c = vec4.clone(color);
 		}
 		
-		let idx = _nextInstanceId;
+		let idx = _nextInstanceId; // we must resever alpha component
 		let id = intToVec4(idx);
 		_nextInstanceId++;
 		
