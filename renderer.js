@@ -802,7 +802,6 @@ function Renderer()
 				else if(b.color.a < 1.0 && !blendEnabled)
 				{
 					gl.enable(gl.BLEND);
-					gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 					blendEnabled = true;
 				}
 				gl.uniform4fv(currentProgram.colorUniform, b.color);
@@ -817,7 +816,6 @@ function Renderer()
 				else if(b.useBlending && !blendEnabled)
 				{
 					gl.enable(gl.BLEND);
-					gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 					blendEnabled = true;
 				}
 			}
@@ -1012,6 +1010,7 @@ function Renderer()
 		gl.bindTexture(gl.TEXTURE_2D, null);
 
 		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+		gl.depthFunc(gl.LESS);
 
 		return true;
 	}
