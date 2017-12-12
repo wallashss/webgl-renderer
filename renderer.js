@@ -794,17 +794,27 @@ function Renderer()
 			}
 		}
 
-		if(currentProgram)
+		if(lines.length > 0)
 		{
-			gl.uniform1f(currentProgram.unlitUniform, 1.0);		
+			currentProgram = mainProgram;
+			gl.useProgram(currentProgram.program);
+
+			mat4.identity(m);
+			mat4.multiply(mv, v, m);
+			mat4.multiply(mvp, p, mv);
+
+			gl.uniform1f(currentProgram.unlitUniform, 1.0);
+			gl.uniformMatrix4fv(currentProgram.modelViewUniform, false, mv);
+			gl.uniformMatrix4fv(currentProgram.modelViewProjectionUniform, false, mvp);
 		}
 		for(let i =0 ; i < lines.length; i++)
 		{
 			let l = lines[i];
 
-			gl.uniform1i(program.texSamplerUniform, 0);
+			gl.uniform1i(currentProgram.texSamplerUniform, 0);
 			gl.bindTexture(gl.TEXTURE_2D, dummyTexture);
 			gl.uniform1f(currentProgram.useTextureUniform, 0.0);
+			gl.uniform4fv(currentProgram.colorUniform, l.color);
 			
 			gl.bindBuffer(gl.ARRAY_BUFFER, l.verticesBufferId);
 			gl.vertexAttribPointer(currentProgram.positionVertex, 3, gl.FLOAT, false, l.vertexSize, 0);
