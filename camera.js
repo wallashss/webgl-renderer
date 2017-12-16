@@ -253,7 +253,8 @@ function Camera()
 	
 	this.setVelocity = function(newVelocity)
 	{
-		velocityScale = newVelocity;
+		// velocityScale = newVelocity;
+		velocityScale = 5;
 		velocity = newVelocity;
 		state.velocity = vec3.fromValues(velocity, velocity, velocity);
 	}
