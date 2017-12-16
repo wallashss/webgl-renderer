@@ -866,6 +866,7 @@ function Renderer()
 		}
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.useProgram(null);
+		enableAttribs([]);
 		enabledVertexAttribMap = [];
 	}
 
