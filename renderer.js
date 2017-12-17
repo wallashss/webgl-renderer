@@ -339,6 +339,7 @@ function Renderer()
 			transform: t,
 			color: c,
 			id: id,
+			visible: true,
 			textureName: textureName, 
 			programId: Renderer.DEFAULT_PROGRAM,
 			isInstance: false};
@@ -346,6 +347,19 @@ function Renderer()
 		batchesKeys.push(idx);
 		batches[idx] = b;
 		return idx;
+	}
+
+	this.removeObject = function(id)
+	{
+		let idx  = batchesKeys.indexOf(id);
+		if(idx >= 0)
+		{
+			batchesKeys.splice(idx, 1);
+		}
+		if(batches.hasOwnProperty(id))
+		{
+			delete batches[id];
+		}
 	}
 
 	function _addInstance(mesh, colors, matrices, textureName)
@@ -368,6 +382,7 @@ function Renderer()
 				let b = {mesh,
 					transform: t,
 					color: c,
+					visible: true,
 					textureName: textureName,
 					id: id,
 					programId: Renderer.DEFAULT_PROGRAM,
@@ -463,6 +478,7 @@ function Renderer()
 				instanceCount: instanceCount,
 				colorBufferId: colorBufferId,
 				textureName: textureName,
+				visible: true,
 				firstIdx: outIdx,
 				pickBufferId: pickBufferId,
 				useBlending: useBlending,
@@ -557,6 +573,17 @@ function Renderer()
 				gl.bindBuffer(gl.ARRAY_BUFFER, null);
 			}
 		}
+	}
+
+	this.setVisibility = function(idx, visible)
+	{
+		if(batches.hasOwnProperty(idx))
+		{
+			let b = batches[idx];
+
+			b.visible = visible;
+		}
+
 	}
 	
 	this.addLines = function(vertices, color)
@@ -653,6 +680,10 @@ function Renderer()
 		for(let i = 0; i < batchesKeys.length; i++)
 		{
 			let b = batches[batchesKeys[i]];
+			if(!b.visible)
+			{
+				continue;
+			}
 			let program = null;
 			if(!b.programId)
 			{
@@ -1036,8 +1067,6 @@ function Renderer()
 				mainProgram = programsMap[Renderer.DEFAULT_PROGRAM];
 				instanceProgram = programsMap[Renderer.INSTACE_PROGRAM];
 			}
-
-			// mainProgram = programsMap[Renderer.DEFAULT_PROGRAM];
 
 		}
 	}
