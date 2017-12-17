@@ -147,6 +147,7 @@ function Framebuffer(gl, width, height)
             console.log("Framebuffer with no textures!");
             return;
         }
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.disable(gl.DEPTH_TEST);
         gl.useProgram(Framebuffer.defaultProgram);
         
