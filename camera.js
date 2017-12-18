@@ -171,7 +171,7 @@ function Camera()
 			{
 				if(document.activeElement)
 				{
-					if(document.activeElement.tagName === "textarea" || document.activeElement.tagName === "input")
+					if(document.activeElement.tagName === "textarea" || document.activeElement.tagName === "input" || document.activeElement.tagName === "select")
 					{
 						return;
 					}
