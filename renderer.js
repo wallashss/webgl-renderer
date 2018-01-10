@@ -928,6 +928,17 @@ function Renderer()
 		}
 	}
 
+	this.enablePolygonOffset = function()
+	{
+		gl.enable(gl.POLYGON_OFFSET_FILL);
+		gl.polygonOffset(0, 1);
+	}
+
+	this.disablePolygonOffset = function()
+	{
+		gl.disable(gl.POLYGON_OFFSET_FILL);
+	}
+
 	this.setDisableClear = function(disable)
 	{
 		disableClear = disable;
@@ -1027,6 +1038,7 @@ function Renderer()
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		
 		gl.enable(gl.DEPTH_TEST);
+		// gl.depthFunc(gl.LEQUAL);
 
 		dummyTexture = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, dummyTexture);
@@ -1042,7 +1054,7 @@ function Renderer()
 		gl.bindTexture(gl.TEXTURE_2D, null);
 
 		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-		gl.depthFunc(gl.LESS);
+		gl.depthFunc(gl.LEQUAL);
 
 		return true;
 	}
