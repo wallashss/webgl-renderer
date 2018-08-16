@@ -29,6 +29,7 @@ function Renderer()
 	let batchesKeys = [];
 	let batches = {};
 	let lines = [];
+	this.points = [];
 	let textureMap = {};
 	let hasInstancing = false;
 	let hasDrawBuffer = false;
@@ -312,7 +313,10 @@ function Renderer()
 		{
 			gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, elements, gl.STATIC_DRAW);
 		}
-		return {verticesBufferId: verticesBufferId, elementsBufferId: elementsBufferId, count: elements.length};
+
+		let count = elements.length;
+
+		return {verticesBufferId: verticesBufferId, elementsBufferId: elementsBufferId, count: count};
 	}
 
 	this.addObject = function(vertices, elements, color, transform, textureName)
@@ -585,6 +589,32 @@ function Renderer()
 		}
 
 	}
+
+	this.addPoints = function(vertices, color)
+	{
+		let verticesBufferId = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
+
+		if(vertices.constructor === Float32Array)
+		{
+			gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+		}
+		else
+		{
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+		}
+		
+		
+		if(!color)
+		{
+			color = vec4.fromValues(1.0, 1.0, 1.0, 1.0);
+		}
+		
+		this.points.push({verticesBufferId: verticesBufferId,
+					count: vertices.length / 3,
+					vertexSize: 3 * 4, // 3 components * 4 bytes per float
+					color: color});
+	}
 	
 	this.addLines = function(vertices, color)
 	{
@@ -641,6 +671,7 @@ function Renderer()
 		}
 		batches = {};
 		batchesKeys = [];
+		self.points = [];
 	}
 
 
@@ -652,7 +683,7 @@ function Renderer()
 			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		}
 		
-		if(batches.length == 0 && lines.length == 0)
+		if(batchesKeys.length === 0 && lines.length === 0 && this.points.length === 0)
 		{
 			return;
 		}
@@ -866,9 +897,11 @@ function Renderer()
 			}
 		}
 
+		// Draw Lines
 		if(lines.length > 0)
 		{
 			currentProgram = mainProgram;
+			enableAttribs(currentProgram.attribs);
 			gl.useProgram(currentProgram.program);
 
 			mat4.identity(m);
@@ -895,6 +928,41 @@ function Renderer()
 			
 			gl.drawArrays(gl.LINES, 0, l.count);
 		}
+
+		// Draw Points
+		if(this.points.length > 0)
+		{
+			currentProgram = mainProgram;
+			enableAttribs(currentProgram.attribs);
+			gl.useProgram(currentProgram.program);
+
+			mat4.identity(m);
+			mat4.multiply(mv, v, m);
+			mat4.multiply(mvp, p, mv);
+
+			gl.uniform1f(currentProgram.unlitUniform, 1.0);
+			gl.uniformMatrix4fv(currentProgram.modelViewUniform, false, mv);
+			gl.uniformMatrix4fv(currentProgram.modelViewProjectionUniform, false, mvp);
+		}
+
+		for(let i = 0; i < this.points.length; i++)
+		{
+			let point = this.points[i];
+
+			gl.uniform1i(currentProgram.texSamplerUniform, 0);
+			gl.bindTexture(gl.TEXTURE_2D, dummyTexture);
+			gl.uniform1f(currentProgram.useTextureUniform, 0.0);
+			gl.uniform4fv(currentProgram.colorUniform, point.color);
+			
+			gl.bindBuffer(gl.ARRAY_BUFFER, point.verticesBufferId);
+			gl.vertexAttribPointer(currentProgram.positionVertex, 3, gl.FLOAT, false, point.vertexSize, 0);
+			gl.vertexAttribPointer(currentProgram.normalVertex, 3, gl.FLOAT, false, point.vertexSize, 0); // 3 components x 4 bytes per float		
+			gl.vertexAttribPointer(currentProgram.texcoord, 2, gl.FLOAT, false, point.vertexSize, 0);
+			
+			gl.drawArrays(gl.LINES, 0, point.count);
+		}
+
+
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.useProgram(null);
 		enableAttribs([]);

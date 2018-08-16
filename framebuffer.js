@@ -225,4 +225,5 @@ function Framebuffer(gl, width, height)
     }();
 }
 
+
 module.exports = Framebuffer;
