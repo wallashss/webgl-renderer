@@ -40,6 +40,7 @@ function Renderer()
 	let isAnimating = false;
 
 	let _viewMatrix = mat4.create();
+	let _projectionMatrix = mat4.create();
 	
 	this.drawPicking = false;
 	this.translation = vec3.create();
@@ -319,7 +320,7 @@ function Renderer()
 		return {verticesBufferId: verticesBufferId, elementsBufferId: elementsBufferId, count: count};
 	}
 
-	this.addObject = function(vertices, elements, color, transform, textureName)
+	this.addObject = function(vertices, elements, color, transform, textureName, unlit)
 	{
 		let mesh = self.uploadMesh(vertices, elements);
 
@@ -346,7 +347,8 @@ function Renderer()
 			visible: true,
 			textureName: textureName, 
 			programId: Renderer.DEFAULT_PROGRAM,
-			isInstance: false};
+			isInstance: false,
+		    unlit: unlit || false};
 
 		batchesKeys.push(idx);
 		batches[idx] = b;
@@ -579,6 +581,27 @@ function Renderer()
 		}
 	}
 
+	this.updateTransform = function(idx, transform)
+	{
+		if(batches.hasOwnProperty(idx))
+		{
+			let b = batches[idx];
+
+			if(!b.isInstance)
+			{
+				b.transform = transform;
+			}
+			else
+			{
+				let offset =  idx - b.firstIdx;
+				let c = vec4fToVec4b(color); 
+				gl.bindBuffer(gl.ARRAY_BUFFER, b.colorBufferId);
+				gl.bufferSubData(gl.ARRAY_BUFFER, offset * 4, c);
+				gl.bindBuffer(gl.ARRAY_BUFFER, null);
+			}
+		}
+	}
+
 	this.setVisibility = function(idx, visible)
 	{
 		if(batches.hasOwnProperty(idx))
@@ -653,6 +676,9 @@ function Renderer()
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 		}
+
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		
@@ -690,13 +716,11 @@ function Renderer()
 	
 		// Bind shader
 		
-		let identity = mat4.create();
 		let m = mat4.create();
-		let v = _viewMatrix;
-		let p = mat4.create();
 		let mv = mat4.create();
 		let mvp = mat4.create();
-		mat4.perspective(p, 45, canvas.width / canvas.height, 0.1, 100000.0);
+		let p = _projectionMatrix;
+		let v = _viewMatrix;
 		
 		let currentProgram = null;
 		let currentVertexBufferId = null;
@@ -706,6 +730,7 @@ function Renderer()
 		let currentTextureId = null;
 		let currentPickBufferId = null;
 		let blendEnabled = false;
+		let unlintSet = false;
 
 		gl.activeTexture(gl.TEXTURE0);
 		for(let i = 0; i < batchesKeys.length; i++)
@@ -738,6 +763,7 @@ function Renderer()
 				continue;
 			}
 
+
 			if(currentProgram !== program)
 			{
 				currentProgram = program;
@@ -748,7 +774,15 @@ function Renderer()
 				let eyeLightPosition = vec3.fromValues(0.0, 0.0, 0.0);
 				gl.uniform3fv(currentProgram.lightPositionUniform, eyeLightPosition);
 				
-				gl.uniform1f(currentProgram.unlitUniform, 0.0);
+				unlintSet = b.unlit;
+				gl.uniform1f(currentProgram.unlitUniform, unlintSet ? 1.0 : 0.0);
+				// gl.uniform1f(currentProgram.unlitUniform, 0.0);
+			
+			}
+			else if(b.unlit !== unlintSet)
+			{
+				unlintSet = b.unlit;
+				gl.uniform1f(currentProgram.unlitUniform, unlintSet ? 1.0 : 0.0);
 			}
 			
 			// Matrices
@@ -894,6 +928,7 @@ function Renderer()
 			else
 			{
 				gl.drawElements(gl.TRIANGLES, b.mesh.count, gl.UNSIGNED_SHORT, 0);
+				// gl.drawElements(gl.LINES, b.mesh.count, gl.UNSIGNED_SHORT, 0);
 			}
 		}
 
@@ -979,11 +1014,28 @@ function Renderer()
 		canvas.height = bounds.height;
 	}
 
+	this.setViewport = function(x, y, width, height, willDraw = false)
+	{
+		if(mainProgram)
+		{
+			gl.viewport(x, y, width, height);
+			if(willDraw)
+			{
+				self.draw();
+			}
+		}
+	}
+
 	this.onResize = function(willDraw)
 	{
 		if(canvas.element)
 		{
 			self.updateViewBounds();
+
+			// let p = mat4.create();
+			// let mv = mat4.create();
+			// let mvp = mat4.create();
+			mat4.perspective(_projectionMatrix, 45, canvas.width / canvas.height, 0.1, 100000.0);
 
 			if(mainProgram)
 			{
@@ -1085,6 +1137,8 @@ function Renderer()
 		
 		gl.viewport(0, 0, canvas.width, canvas.height);
 		
+
+		// Load shaders
 		self.loadShaders(Shaders.VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.DEFAULT_PROGRAM);
 
 		if(hasInstancing)
@@ -1102,12 +1156,19 @@ function Renderer()
 			self.loadShaders(Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.PICK_FRAGMENT_SHADER_SOURCE, Renderer.INSTANCE_PICKING_PROGRAM);
 		}
 		
+		
+		// Set clear color
 		gl.clearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
+
+		// Clear frame buffer
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		
+		// Default setup
 		gl.enable(gl.DEPTH_TEST);
-		// gl.depthFunc(gl.LEQUAL);
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+		gl.depthFunc(gl.LEQUAL);
 
+		// We always bind a default dummy texture
 		dummyTexture = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, dummyTexture);
 		let dummyArray = [];
@@ -1119,10 +1180,10 @@ function Renderer()
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(dummyArray));
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-		gl.bindTexture(gl.TEXTURE_2D, null);
+		gl.bindTexture(gl.TEXTURE_2D, null);		
 
-		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-		gl.depthFunc(gl.LEQUAL);
+		// Init perspective matrix
+		mat4.perspective(_projectionMatrix, 45, canvas.width / canvas.height, 0.1, 100000.0);
 
 		return true;
 	}
@@ -1163,6 +1224,11 @@ function Renderer()
 	this.setViewMatrix = function(viewMatrix)
 	{
 		_viewMatrix = mat4.clone(viewMatrix);
+	}
+
+	this.setProjectionMatrix = function(projectionMatrix)
+	{
+		_projectionMatrix = mat4.clone(projectionMatrix);
 	}
 	
 	this.setScale = function(newScale)

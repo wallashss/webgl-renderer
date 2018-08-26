@@ -89,7 +89,15 @@ void main(void)
 {
     if(unlit >0.0)
     {
-        gl_FragColor = currentColor;
+        if(useTexture == 0.0)
+        {
+            gl_FragColor = currentColor;
+        }
+        else
+        {
+            vec4 texel = texture2D(texSampler, vTexcoord);
+            gl_FragColor = currentColor * texel;
+        }
     }
     else
     {

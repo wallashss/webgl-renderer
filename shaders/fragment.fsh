@@ -12,7 +12,15 @@ void main(void)
 {
 	if(unlit >0.0)
 	{
-		gl_FragColor = currentColor;
+		if(useTexture == 0)
+		{
+			gl_FragColor = currentColor;
+		}
+		else
+		{
+			gl_FragColor = currentColor.rgb * texel.rgb;
+		}
+		
 	}
 	else
 	{
