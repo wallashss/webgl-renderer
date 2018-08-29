@@ -368,7 +368,7 @@ function Renderer()
 		}
 	}
 
-	function _addInstance(mesh, colors, matrices, textureName)
+	function _addInstance(mesh, colors, matrices, textureName, unlit = false)
 	{
 		const outIdx = _nextInstanceId;
 		let out = [];
@@ -392,6 +392,7 @@ function Renderer()
 					textureName: textureName,
 					id: id,
 					programId: Renderer.DEFAULT_PROGRAM,
+					unlit: unlit,
 					isInstance: false}
 				batchesKeys.push(idx);
 				batches[idx] = b;
@@ -488,6 +489,7 @@ function Renderer()
 				firstIdx: outIdx,
 				pickBufferId: pickBufferId,
 				useBlending: useBlending,
+				unlit : unlit,
 				programId: Renderer.INSTACE_PROGRAM,
 				isInstance: true}
 		
@@ -500,7 +502,7 @@ function Renderer()
 		}
 		return out;
 	}
-	this.addInstances = function(mesh, colors, matrices, textureName)
+	this.addInstances = function(mesh, colors, matrices, textureName, unlit)
 	{
 		if(!matrices)
 		{
@@ -526,7 +528,7 @@ function Renderer()
 			console.log("Colors and instances must have same length");
 			return;
 		}
-		return _addInstance(mesh, colors, matrices, textureName);
+		return _addInstance(mesh, colors, matrices, textureName, unlit);
 
 	}
 	this.addObjectInstances = function(vertices, elements, colors, matrices, textureName)
@@ -613,7 +615,7 @@ function Renderer()
 
 	}
 
-	this.addPoints = function(vertices, color)
+	this.addPoints = function(vertices, color, transform)
 	{
 		let verticesBufferId = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
@@ -627,6 +629,10 @@ function Renderer()
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 		}
 		
+		if(!transform)
+		{
+			transform = mat4.create();
+		}
 		
 		if(!color)
 		{
@@ -636,7 +642,8 @@ function Renderer()
 		this.points.push({verticesBufferId: verticesBufferId,
 					count: vertices.length / 3,
 					vertexSize: 3 * 4, // 3 components * 4 bytes per float
-					color: color});
+					color: color,
+					transform: transform});
 	}
 	
 	this.addLines = function(vertices, color)
@@ -924,6 +931,7 @@ function Renderer()
 			if(currentProgram.isInstance)
 			{
 				instanceExt.drawElementsInstancedANGLE(gl.TRIANGLES, b.mesh.count, gl.UNSIGNED_SHORT, 0, b.instanceCount);
+				// instanceExt.drawElementsInstancedANGLE(gl.LINES, b.mesh.count, gl.UNSIGNED_SHORT, 0, b.instanceCount);
 			}
 			else
 			{
@@ -971,18 +979,23 @@ function Renderer()
 			enableAttribs(currentProgram.attribs);
 			gl.useProgram(currentProgram.program);
 
-			mat4.identity(m);
-			mat4.multiply(mv, v, m);
-			mat4.multiply(mvp, p, mv);
+			// mat4.identity(m);
+			
 
 			gl.uniform1f(currentProgram.unlitUniform, 1.0);
-			gl.uniformMatrix4fv(currentProgram.modelViewUniform, false, mv);
-			gl.uniformMatrix4fv(currentProgram.modelViewProjectionUniform, false, mvp);
+			
 		}
 
 		for(let i = 0; i < this.points.length; i++)
 		{
 			let point = this.points[i];
+
+			mat4.copy(m, point.transform);
+			mat4.multiply(mv, v, m);
+			mat4.multiply(mvp, p, mv);
+
+			gl.uniformMatrix4fv(currentProgram.modelViewUniform, false, mv);
+			gl.uniformMatrix4fv(currentProgram.modelViewProjectionUniform, false, mvp);
 
 			gl.uniform1i(currentProgram.texSamplerUniform, 0);
 			gl.bindTexture(gl.TEXTURE_2D, dummyTexture);
@@ -995,6 +1008,7 @@ function Renderer()
 			gl.vertexAttribPointer(currentProgram.texcoord, 2, gl.FLOAT, false, point.vertexSize, 0);
 			
 			gl.drawArrays(gl.LINES, 0, point.count);
+			// gl.drawArrays(gl.POINTS, 0, point.count);
 		}
 
 
@@ -1035,7 +1049,7 @@ function Renderer()
 			// let p = mat4.create();
 			// let mv = mat4.create();
 			// let mvp = mat4.create();
-			mat4.perspective(_projectionMatrix, 45, canvas.width / canvas.height, 0.1, 100000.0);
+			mat4.perspective(_projectionMatrix, 45, canvas.width / canvas.height, 0.01, 100000.0);
 
 			if(mainProgram)
 			{
