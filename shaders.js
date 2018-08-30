@@ -145,7 +145,15 @@ void main(void)
 {
     if(unlit >0.0)
     {
-        gl_FragData[1] = currentColor;
+        if(useTexture == 0.0)
+        {
+            gl_FragData[1] = currentColor;
+        }
+        else
+        {
+            vec4 texel = texture2D(texSampler, vTexcoord);
+            gl_FragData[1] = currentColor * texel;
+        }
     }
     else
     {
@@ -157,6 +165,7 @@ void main(void)
         
         // Diffuse
         vec3 diffuse = vec3(d);
+        //diffuse = vNormal;
         
         vec3 illumination = diffuse + ambient;
         if(useTexture == 0.0)

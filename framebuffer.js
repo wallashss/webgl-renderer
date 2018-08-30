@@ -4,6 +4,23 @@ const Shaders = require("./shaders");
 const ShaderBuilder = require("./shaderbuilder");
 const vec2 = require("gl-matrix").vec2;
 
+
+function uploadDefaultQuad(gl)
+{    
+    let quad = new Float32Array(12);
+    quad[0] = -1; quad[1] =  1;
+    quad[2] =  1; quad[3] =  1;
+    quad[4] = -1; quad[5] = -1;
+    quad[6] =  1; quad[7] = -1;
+
+    
+    let defaultQuad = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, defaultQuad);
+    gl.bufferData(gl.ARRAY_BUFFER, quad, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    Framebuffer.defaultQuad = defaultQuad;
+}
+
 function Framebuffer(gl, width, height)
 {
     let self = this;
@@ -28,41 +45,22 @@ function Framebuffer(gl, width, height)
     Framebuffer.defaultShader = null;
     Framebuffer.defaultAttrib = null;
 
-    function createDefaultShader()
+    function _createDefaultShader(self)
     {
-        let defaultProgram = ShaderBuilder.createProgram(Shaders.FRAMEBUFFER_VERTEX_SHADER_SOURCE, 
-            Shaders.FRAMEBUFFER_FRAGMENT_SHADER_SOURCE, gl);
+        let defaultProgram = ShaderBuilder.createProgram(Shaders.FRAMEBUFFER_VERTEX_SHADER_SOURCE, Shaders.FRAMEBUFFER_FRAGMENT_SHADER_SOURCE, gl);
         if(defaultProgram)
         {
             gl.useProgram(defaultProgram);
             Framebuffer.defaultAttrib = gl.getAttribLocation(defaultProgram, "position");
-            Framebuffer.defaultProgram = defaultProgram;
+            Framebuffer.texSamplerUniform = gl.getUniformLocation(defaultProgram, "texSampler");
             gl.useProgram(null);
+            Framebuffer.defaultProgram = defaultProgram;
         }
         else
         {
             console.log("Failed to load default framebuffer program");
         }
     }
-
-    function uploadDefaultQuad()
-    {
-        let verticesBufferId = gl.createBuffer();
-        
-        let quad = new Float32Array(12);
-        quad[0] = -1; quad[1] =  1;
-        quad[2] =  1; quad[3] =  1;
-        quad[4] = -1; quad[5] = -1;
-        quad[6] =  1; quad[7] = -1;
-
-        
-        let defaultQuad = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, defaultQuad);
-        gl.bufferData(gl.ARRAY_BUFFER, quad, gl.STATIC_DRAW);
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
-        Framebuffer.defaultQuad = defaultQuad;
-    }
-
 
     this.addTexture = function(attach, internalFormat, format, type)
     {
@@ -136,12 +134,13 @@ function Framebuffer(gl, width, height)
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 
-    this.draw = function(idx)
+    this.getTexture = function(idx = 0)
     {
-        if(idx === null || idx === undefined)
-        {
-            idx = 0;
-        }
+        return _textures[idx].textureId;
+    }
+
+    this.draw = function(idx = 0)
+    {
         if(_textures.length <= 0)
         {
             console.log("Framebuffer with no textures!");
@@ -156,20 +155,21 @@ function Framebuffer(gl, width, height)
         gl.enableVertexAttribArray(Framebuffer.defaultAttrib);
         gl.vertexAttribPointer(Framebuffer.defaultAttrib, 2, gl.FLOAT, false, vertexSize, 0);
 
-        let texSamplerUniform = gl.getUniformLocation(Framebuffer.defaultProgram, "texSampler");
-        let sizeUniform = gl.getUniformLocation(Framebuffer.defaultProgram, "size");
+        // let texSamplerUniform = gl.getUniformLocation(Framebuffer.defaultProgram, "texSampler");
+        // let sizeUniform = gl.getUniformLocation(Framebuffer.defaultProgram, "size");
 
         let texture = _textures[idx];
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, texture.textureId);
-        gl.uniform1i(texSamplerUniform, 0);
 
-        gl.uniform2f(sizeUniform, _vWidth, _vHeight);
+        gl.uniform1i(Framebuffer.texSamplerUniform, 0);
+        // gl.uniform2f(Framebuffer.sizeUniform, _vWidth, _vHeight);
         
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         gl.disableVertexAttribArray(Framebuffer.defaultAttrib);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindTexture(gl.TEXTURE_2D, null);
         gl.useProgram(null);
         gl.enable(gl.DEPTH_TEST);
     }
@@ -201,10 +201,15 @@ function Framebuffer(gl, width, height)
             console.log("Invalid context");
             return;
         }
+
+        if(!Framebuffer.defaultProgram)
+        {
+            _createDefaultShader(self);
+        }
+        
         if(!Framebuffer.defaultQuad)
         {
-            uploadDefaultQuad();
-            createDefaultShader();
+            uploadDefaultQuad(gl);
         }
 
         _depthExt = gl.getExtension('WEBGL_depth_texture');
@@ -225,5 +230,14 @@ function Framebuffer(gl, width, height)
     }();
 }
 
+
+Framebuffer.getDefaultQuad = function(gl)
+{
+    if(!Framebuffer.defaultQuad)
+    {
+        uploadDefaultQuad(gl);
+    }
+    return Framebuffer.defaultQuad;
+}
 
 module.exports = Framebuffer;

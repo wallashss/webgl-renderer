@@ -47,6 +47,8 @@ function Renderer()
 	this.scale = vec3.fromValues(1.0, 1.0, 1.0);
 	this.rotation = mat4.create();
 
+	this.cullFace = false;
+
 	let enabledVertexAttribMap = [];
 	let attribDivisors = {};
 
@@ -900,11 +902,13 @@ function Renderer()
 				if(b.color.a >= 1.0 && blendEnabled)
 				{
 					gl.disable(gl.BLEND);
+					// gl.depthMask(true);
 					blendEnabled = false;
 				}
 				else if(b.color.a < 1.0 && !blendEnabled)
 				{
 					gl.enable(gl.BLEND);
+					// gl.depthMask(false);
 					blendEnabled = true;
 				}
 				gl.uniform4fv(currentProgram.colorUniform, b.color);
@@ -914,11 +918,15 @@ function Renderer()
 				if(!b.useBlending && blendEnabled)
 				{
 					gl.disable(gl.BLEND);
+					// gl.enable(gl.DEPTH_TEST);
+					gl.depthMask(true);
 					blendEnabled = false;
 				}
 				else if(b.useBlending && !blendEnabled)
 				{
 					gl.enable(gl.BLEND);
+					// gl.disable(gl.DEPTH_TEST);
+					gl.depthMask(false);
 					blendEnabled = true;
 				}
 			}
@@ -1012,6 +1020,11 @@ function Renderer()
 		}
 
 
+		if(blendEnabled)
+		{
+			gl.disable(gl.BLEND);
+			gl.depthMask(true);
+		}
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.useProgram(null);
 		enableAttribs([]);
@@ -1117,6 +1130,9 @@ function Renderer()
 		newRenderer.addProgram(instanceProgram, Renderer.INSTACE_PROGRAM);
 		newRenderer.addProgram(pickProgram, Renderer.PICKING_PROGRAM);
 		newRenderer.addProgram(instancePickProgram, Renderer.INSTANCE_PICKING_PROGRAM);
+
+		newRenderer.setProjectionMatrix(_projectionMatrix);
+		newRenderer.setViewMatrix(_viewMatrix);
 		return newRenderer;
 	}
 

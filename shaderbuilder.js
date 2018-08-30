@@ -32,7 +32,7 @@ function createProgram(vertexSource, fragmentSource, gl)
             console.log("Error initing shader program");
             return null;
         }
-        return program
+        return program;
     }
     return null;
     
