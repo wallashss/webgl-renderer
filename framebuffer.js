@@ -71,7 +71,10 @@ function Framebuffer(gl, width, height)
                         format: format, 
                         type: type,
                         textureId: textureId});
-        _drawBufferExt.drawBuffersWEBGL(_colorAttachs);
+        if(_drawBufferExt)
+        {
+            _drawBufferExt.drawBuffersWEBGL(_colorAttachs);
+        }
         
         return _textures.length - 1;
     }
@@ -89,6 +92,8 @@ function Framebuffer(gl, width, height)
             gl.bindTexture(gl.TEXTURE_2D, _depthTexture);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, _width, _height, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
             gl.framebufferTexture2D(gl.FRAMEBUFFER,  gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, _depthTexture, 0);
             gl.bindTexture(gl.TEXTURE_2D, null);
@@ -105,10 +110,16 @@ function Framebuffer(gl, width, height)
                 
         gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, _width, _height, 0, format, type, null);
         
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, _drawBufferExt.COLOR_ATTACHMENT0_WEBGL + attach, gl.TEXTURE_2D, texture, 0);
-
+        if(_drawBufferExt)
+        {
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, _drawBufferExt.COLOR_ATTACHMENT0_WEBGL + attach, gl.TEXTURE_2D, texture, 0);
+            _colorAttachs.push(_drawBufferExt.COLOR_ATTACHMENT0_WEBGL+attach);
+        }
+        else
+        {
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+        }
         gl.bindTexture(gl.TEXTURE_2D, null);
-        _colorAttachs.push(_drawBufferExt.COLOR_ATTACHMENT0_WEBGL+attach);
     }
 
     this.resize = function(w, h)
@@ -139,6 +150,11 @@ function Framebuffer(gl, width, height)
         return _textures[idx].textureId;
     }
 
+    this.getDepthTexture = function()
+    {
+        return _depthTexture;
+    }
+
     this.draw = function(idx = 0)
     {
         if(_textures.length <= 0)
@@ -148,6 +164,7 @@ function Framebuffer(gl, width, height)
         }
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.disable(gl.DEPTH_TEST);
+        // gl.disable(gl.CULL_FACE);
         gl.useProgram(Framebuffer.defaultProgram);
         
         const vertexSize = 2 * 4
@@ -171,6 +188,7 @@ function Framebuffer(gl, width, height)
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.bindTexture(gl.TEXTURE_2D, null);
         gl.useProgram(null);
+        // gl.enable(gl.CULL_FACE);
         gl.enable(gl.DEPTH_TEST);
     }
 

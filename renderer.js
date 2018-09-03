@@ -47,6 +47,8 @@ function Renderer()
 	this.scale = vec3.fromValues(1.0, 1.0, 1.0);
 	this.rotation = mat4.create();
 
+	this.version = 1;
+
 	this.cullFace = false;
 
 	let enabledVertexAttribMap = [];
@@ -210,6 +212,7 @@ function Renderer()
 			}
 			
 			
+			let projection = gl.getUniformLocation(program, "projection");
 			let modelViewProjection = gl.getUniformLocation(program, "modelViewProjection");
 			let modelViewUniform = gl.getUniformLocation(program, "modelView");
 			let normalMatrixUniform = gl.getUniformLocation(program, "normalMatrix");
@@ -217,6 +220,7 @@ function Renderer()
 			let colorUniform = gl.getUniformLocation(program, "color");
 			let useTextureUniform = gl.getUniformLocation(program, "useTexture");
 			let unlitUniform = gl.getUniformLocation(program, "unlit");
+			let isBillboardUniform = gl.getUniformLocation(program, "isBillboard");
 			let texSamplerUniform = gl.getUniformLocation(program, "texSampler");
 			let pickingUniform = gl.getUniformLocation(program, "picking");
 
@@ -229,6 +233,7 @@ function Renderer()
 					model: model,
 					colorInstance: colorInstance,
 					pickingInstance: pickingInstance,
+					projectionUniform: projection,
 					modelViewProjectionUniform: modelViewProjection,
 					modelViewUniform: modelViewUniform,
 					normalMatrixUniform: normalMatrixUniform,
@@ -236,6 +241,7 @@ function Renderer()
 					colorUniform: colorUniform,
 					useTextureUniform: useTextureUniform,
 					unlitUniform: unlitUniform,
+					isBillboardUniform: isBillboardUniform,
 					pickingUniform: pickingUniform,
 					texSamplerUniform: texSamplerUniform,
 					id: programId,
@@ -370,7 +376,7 @@ function Renderer()
 		}
 	}
 
-	function _addInstance(mesh, colors, matrices, textureName, unlit = false)
+	function _addInstance(mesh, colors, matrices, textureName, unlit = false, isBillboard = false)
 	{
 		const outIdx = _nextInstanceId;
 		let out = [];
@@ -394,7 +400,8 @@ function Renderer()
 					textureName: textureName,
 					id: id,
 					programId: Renderer.DEFAULT_PROGRAM,
-					unlit: unlit,
+					unlit: unlit || false,
+					isBillboard: isBillboard || false,
 					isInstance: false}
 				batchesKeys.push(idx);
 				batches[idx] = b;
@@ -491,7 +498,8 @@ function Renderer()
 				firstIdx: outIdx,
 				pickBufferId: pickBufferId,
 				useBlending: useBlending,
-				unlit : unlit,
+				unlit : unlit || false,
+				isBillboard: isBillboard || false,
 				programId: Renderer.INSTACE_PROGRAM,
 				isInstance: true}
 		
@@ -504,7 +512,7 @@ function Renderer()
 		}
 		return out;
 	}
-	this.addInstances = function(mesh, colors, matrices, textureName, unlit)
+	this.addInstances = function(mesh, colors, matrices, textureName, unlit, isBillboard)
 	{
 		if(!matrices)
 		{
@@ -530,10 +538,10 @@ function Renderer()
 			console.log("Colors and instances must have same length");
 			return;
 		}
-		return _addInstance(mesh, colors, matrices, textureName, unlit);
+		return _addInstance(mesh, colors, matrices, textureName, unlit, isBillboard);
 
 	}
-	this.addObjectInstances = function(vertices, elements, colors, matrices, textureName)
+	this.addObjectInstances = function(vertices, elements, colors, matrices, textureName, unlit, isBillboard)
 	{
 		if(!matrices)
 		{
@@ -561,7 +569,7 @@ function Renderer()
 		}
 
 		let mesh = self.uploadMesh(vertices, elements);
-		_addInstance(mesh, colors, matrices, textureName);
+		_addInstance(mesh, colors, matrices, textureName, unlit, isBillboard);
 	}
 
 	this.updateColor = function(idx, color)
@@ -740,6 +748,7 @@ function Renderer()
 		let currentPickBufferId = null;
 		let blendEnabled = false;
 		let unlintSet = false;
+		let billboardSet = false;
 
 		gl.activeTexture(gl.TEXTURE0);
 		for(let i = 0; i < batchesKeys.length; i++)
@@ -786,12 +795,23 @@ function Renderer()
 				unlintSet = b.unlit;
 				gl.uniform1f(currentProgram.unlitUniform, unlintSet ? 1.0 : 0.0);
 				// gl.uniform1f(currentProgram.unlitUniform, 0.0);
+
+				billboardSet = b.isBillboard;
+				gl.uniform1f(currentProgram.isBillboardUniform, billboardSet ? 1.0 : 0.0);
+				// gl.uniform1f(currentProgram.unlitUniform, 0.0);
 			
 			}
-			else if(b.unlit !== unlintSet)
+			
+			if(b.unlit !== unlintSet)
 			{
 				unlintSet = b.unlit;
 				gl.uniform1f(currentProgram.unlitUniform, unlintSet ? 1.0 : 0.0);
+			}
+
+			if(b.isBillboard !== billboardSet)
+			{
+				billboardSet = b.isBillboard;
+				gl.uniform1f(currentProgram.isBillboardUniform, billboardSet ? 1.0 : 0.0);
 			}
 			
 			// Matrices
@@ -813,11 +833,14 @@ function Renderer()
 			mat4.multiply(mv, v, m);
 			mat4.multiply(mvp, p, mv);
 
+			// gl.uniform1f(currentProgram.unlitUniform, 1.0);
+
 			// Normal matrix
 			mat4.invert(normalMatrix, mv);
 			mat4.transpose(normalMatrix, normalMatrix);
 
 			// Transforms
+			gl.uniformMatrix4fv(currentProgram.projectionUniform, false, p);
 			gl.uniformMatrix4fv(currentProgram.modelViewUniform, false, mv);
 			gl.uniformMatrix4fv(currentProgram.modelViewProjectionUniform, false, mvp);
 			gl.uniformMatrix4fv(currentProgram.normalMatrixUniform, false, normalMatrix);
@@ -918,15 +941,23 @@ function Renderer()
 				if(!b.useBlending && blendEnabled)
 				{
 					gl.disable(gl.BLEND);
-					// gl.enable(gl.DEPTH_TEST);
 					gl.depthMask(true);
+					if(!self.cullFace)
+					{
+						// gl.enable(gl.CULL_FACE);
+						// gl.cullFace(gl.FRONT_AND_BACK);
+					}
 					blendEnabled = false;
 				}
 				else if(b.useBlending && !blendEnabled)
 				{
 					gl.enable(gl.BLEND);
-					// gl.disable(gl.DEPTH_TEST);
 					gl.depthMask(false);
+					if(!self.cullFace)
+					{
+						// gl.disable(gl.CULL_FACE);
+						// gl.cullFace(gl.FRONT_AND_BACK);
+					}
 					blendEnabled = true;
 				}
 			}
@@ -1024,6 +1055,11 @@ function Renderer()
 		{
 			gl.disable(gl.BLEND);
 			gl.depthMask(true);
+			if(!self.cullFace)
+			{
+				// gl.enable(gl.CULL_FACE);
+				// gl.cullFace(gl.FRONT_AND_BACK);
+			}
 		}
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.useProgram(null);
@@ -1059,14 +1095,11 @@ function Renderer()
 		{
 			self.updateViewBounds();
 
-			// let p = mat4.create();
-			// let mv = mat4.create();
-			// let mvp = mat4.create();
-			mat4.perspective(_projectionMatrix, 45, canvas.width / canvas.height, 0.01, 100000.0);
+			// mat4.perspective(_projectionMatrix, 45, canvas.width / canvas.height, 0.1, 100000.0);
 
 			if(mainProgram)
 			{
-				gl.viewport(0, 0, canvas.width, canvas.height);
+				// gl.viewport(0, 0, canvas.width, canvas.height);
 				if(willDraw)
 				{
 					self.draw();
@@ -1089,6 +1122,11 @@ function Renderer()
 	this.setDisableClear = function(disable)
 	{
 		disableClear = disable;
+	}
+
+	this.enableCullface = function(cullFace)
+	{
+		this.enableCullface = cullFace;
 	}
 
 	this.setBackgroundColor = function(r, g, b, a)
@@ -1138,16 +1176,41 @@ function Renderer()
 
 	this.loadExtensions = function()
 	{
-		if(gl.getExtension("ANGLE_instanced_arrays"))
+		
+		// alert(gl.getExtension("EXT_frag_depth"));
+		// console.log(gl.getSupportedExtensions());
+		if(this.version === 2)
 		{
-			console.log("Context has ANGLE_instanced_arrays");
-			instanceExt = gl.getExtension('ANGLE_instanced_arrays');			
 			hasInstancing = true;
-		}
+			instanceExt = 
+			{
+				vertexAttribDivisorANGLE: (a, b)=>
+				{
+					gl.vertexAttribDivisor(a, b);
+				},
+				drawElementsInstancedANGLE : (a, b, c, d, e) =>
+				{
+					gl.drawElementsInstanced(a, b, c, d, e);
+				}
+			}
 
-		if(gl.getExtension("WEBGL_draw_buffers"))
+		}
+		else
 		{
-			hasDrawBuffer = true;
+			if(gl.getExtension("ANGLE_instanced_arrays"))
+			{
+				console.log("Context has ANGLE_instanced_arrays");
+				instanceExt = gl.getExtension('ANGLE_instanced_arrays');			
+				hasInstancing = true;
+			}
+	
+			if(gl.getExtension("WEBGL_draw_buffers"))
+			{
+				hasDrawBuffer = true;
+			}
+
+			
+
 		}
 	}
 
@@ -1160,10 +1223,24 @@ function Renderer()
 	this.load = function(canvasElement)
 	{
 		self.setCanvasElement(canvasElement);
+
+		this.version = 1;
+
 		
-		gl = canvasElement.getContext("webgl");
+		if(this.version === 2)
+		{
+			gl = canvasElement.getContext("webgl2");
+			
+		}
+		else
+		{
+			gl = canvasElement.getContext("webgl");
+		}
 		
+		window.gl = gl;
 		self.loadExtensions();
+		
+		
 		
 		gl.viewport(0, 0, canvas.width, canvas.height);
 		
@@ -1195,6 +1272,8 @@ function Renderer()
 		
 		// Default setup
 		gl.enable(gl.DEPTH_TEST);
+		// gl.disable(gl.CULL_FACE);
+		// gl.cullFace(gl.BACK);
 		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 		gl.depthFunc(gl.LEQUAL);
 
@@ -1259,6 +1338,12 @@ function Renderer()
 	this.setProjectionMatrix = function(projectionMatrix)
 	{
 		_projectionMatrix = mat4.clone(projectionMatrix);
+	}
+
+	this.setPerspective = function(fov, ratio, near, far)
+	{
+		// mat4.perspective(_projectionMatrix, 45, canvas.width / canvas.height, 0.1, 100000.0);
+		mat4.perspective(_projectionMatrix, fov, ratio, near, far);
 	}
 	
 	this.setScale = function(newScale)

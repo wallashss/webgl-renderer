@@ -70,6 +70,7 @@ FrameRenderer.prototype.draw = function(willClear = false, _gl = null)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
     gl.disable(gl.DEPTH_TEST);
+    // gl.disable(gl.CULL_FACE);
     gl.bindBuffer(gl.ARRAY_BUFFER, Framebuffer.getDefaultQuad(this.gl));
     gl.enableVertexAttribArray(this.defaultAttrib);
     gl.vertexAttribPointer(this.defaultAttrib, 2, gl.FLOAT, false, vertexSize, 0);
@@ -96,6 +97,7 @@ FrameRenderer.prototype.draw = function(willClear = false, _gl = null)
     gl.bindTexture(gl.TEXTURE_2D, null);
     gl.useProgram(null);
     gl.enable(gl.DEPTH_TEST);
+    // gl.enable(gl.CULL_FACE);
 
 }
 
