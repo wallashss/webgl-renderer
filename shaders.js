@@ -198,12 +198,12 @@ void main(void)
     {
         if(useTexture == 0.0)
         {
-            gl_FragData[1] = currentColor;
+            gl_FragData[0] = currentColor;
         }
         else
         {
             vec4 texel = texture2D(texSampler, vTexcoord);
-            gl_FragData[1] = currentColor * texel;
+            gl_FragData[0] = currentColor * texel;
         }
     }
     else
@@ -224,15 +224,15 @@ void main(void)
         vec3 illumination = diffuse + ambient;
         if(useTexture == 0.0)
         {
-            gl_FragData[1] = vec4(illumination * currentColor.rgb, currentColor.a);
+            gl_FragData[0] = vec4(illumination * currentColor.rgb, currentColor.a);
         }
         else
         {
             vec4 texel = texture2D(texSampler, vTexcoord);
-            gl_FragData[1] = vec4(illumination * currentColor.rgb * texel.rgb, currentColor.a);            
+            gl_FragData[0] = vec4(illumination * currentColor.rgb * texel.rgb, currentColor.a);            
         }
     }
-    gl_FragData[0] = vPicking;
+    gl_FragData[1] = vPicking;
 }
 `
 

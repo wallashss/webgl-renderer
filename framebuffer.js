@@ -79,6 +79,12 @@ function Framebuffer(gl, width, height)
         return _textures.length - 1;
     }
 
+    this.setDepthTexture = function(textureId)
+    {
+        _depthTexture = textureId;
+        buildDepthTexture();
+    }
+
     this.addDepthTexture = function()
     {
         _depthTexture = gl.createTexture();
@@ -200,16 +206,36 @@ function Framebuffer(gl, width, height)
         self.release();
     }
 
-    this.pick = function(x, y, idx)
+    this.setTexture = function(textureId)
     {
-        if(idx === undefined || idx === null)
-        {
-            idx = 0;
-        }
-        let pixels = new Uint8Array(4);
-        gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        self.bind();
+        let attach = 0; 
+        let internalFormat = gl.RGBA; 
+        let format = gl.RGBA; 
+        let type = gl.UNSIGNED_BYTE;
 
-        return pixels;
+        buildTexture(textureId, attach, internalFormat, format, type);
+        _textures.push({attach: attach,
+                        internalFormat: internalFormat, 
+                        format: format, 
+                        type: type,
+                        textureId: textureId});
+        if(_drawBufferExt)
+        {
+            _drawBufferExt.drawBuffersWEBGL(_colorAttachs);
+        }
+        
+        return _textures.length - 1;
+
+        self.release();
+    }
+
+    this.pick = function(x, y, idx = 0)
+    {
+        let pixel = new Uint8Array(4);
+        gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+
+        return pixel;
     }
 
     let init = function()
