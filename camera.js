@@ -8,11 +8,9 @@ const Fly = require("./lvrl/fly");
 const Examine = require("./lvrl/examine");
 const Timer = require("./timer");
 
-const EXAMINE_MANIPULATOR_TYPE = 0;
-const FLY_MANIPULATOR_TYPE = 1;	
+
 function Camera()
 {
-	var self = this;
 	this.examineManipulator = new Examine();
 	this.flyManipulator = new Fly();
 	
@@ -51,8 +49,16 @@ function Camera()
 	this.state.angularVelocity = 30.0;
 	this.state.maximumZoom = 1.0;
 	this.state.velocity = vec3.fromValues(this.velocity, this.velocity, this.velocity);
+
+	this.iddleUpdate = false;
 }
 
+
+Camera.EXAMINE_MANIPULATOR_TYPE = 0;
+Camera.FLY_MANIPULATOR_TYPE = 1;
+
+const EXAMINE_MANIPULATOR_TYPE = Camera.EXAMINE_MANIPULATOR_TYPE;
+const FLY_MANIPULATOR_TYPE = Camera.FLY_MANIPULATOR_TYPE;	
 
 Camera.prototype.rotate = function(yawIntensity, pitchIntensity)
 {
@@ -65,9 +71,9 @@ Camera.prototype.zoom = function(intensity)
 	this.state.zoomIntensity = intensity;
 }
 
-Camera.prototype.setViewMatrix = function(viewMatrix)
+Camera.prototype.setViewMatrix = function(viewMatrix, forceDraw = true)
 {
-	this.forceDraw = true;
+	this.forceDraw = forceDraw;
 	this.manipulator.setViewMatrix(viewMatrix);
 }
 
@@ -134,6 +140,25 @@ Camera.prototype.moveFoward = function(v)
 	}
 }
 
+Camera.prototype.moveUp = function(v)
+{
+	if(v > 0)
+	{
+		this.state.up = 1.0;
+		this.state.down = 0.0;
+	}
+	else if ( v < 0 )
+	{
+		this.state.forward = 0.0;
+		this.state.down = 1.0;
+	}
+	else
+	{
+		this.state.up = 0.0;
+		this.state.down = 0.0;
+	}
+}
+
 Camera.prototype.moveRight = function(v)
 {
 	if(v > 0)
@@ -157,7 +182,6 @@ Camera.prototype.moveRight = function(v)
 Camera.prototype.installCamera = function(element, drawcallback)
 {
 	let self = this;
-	let timer = new Timer();
 	
 	let mouseState = this.mouseState;
 	if(element)
@@ -284,29 +308,35 @@ Camera.prototype.installCamera = function(element, drawcallback)
 		
 	}
 	
+	
+	self.onProcessData(drawcallback);
+}
+
+Camera.prototype.onProcessData = function(drawcallback = ()=>{})
+{
+	let timer = new Timer();
+	let self = this;
 	let frameCallback = function()
 	{
 		let dt = timer.elapsedTime();
-		if(drawcallback)
+		// console.log("camera update");
+		if(self.manipulator.update(dt, self.state) || self.iddleUpdate || self.forceDraw)
 		{
-			if(self.manipulator.update(dt, self.state) || self.forceDraw)
-			{
-				drawcallback(self.manipulator.getViewMatrix(), dt);
-				self.forceDraw = false;
-			}
+			// console.log("after camera update");
+			drawcallback(self.manipulator.getViewMatrix(), dt);
+			self.forceDraw = false;
 		}
 		window.requestAnimationFrame(frameCallback);
 		timer.restart();
 	};
 	
-	if(drawcallback)
+	if(this.drawcallback)
 	{
 		drawcallback(self.manipulator.getViewMatrix(), 0);
 	}
 	
 	frameCallback();
 }
-
 
 Camera.prototype.setVelocity = function(newVelocity)
 {
