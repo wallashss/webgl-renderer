@@ -21,7 +21,7 @@ function Fly()
 	}
 	this.setViewMatrix = function(viewMatrix)
 	{
-		_viewMatrix = mat4.clone(viewMatrix);
+		mat4.copy(_viewMatrix, viewMatrix);
 	}
 	
 	this.getViewMatrix = function()
@@ -42,7 +42,7 @@ function Fly()
         let viewMatrix = mat4.clone(_viewMatrix);
         let up4 = vec4.fromValues(state.worldUp[0], state.worldUp[1], state.worldUp[2], 0.0);
 					
-		vec4.transformMat4(up4, up4,viewMatrix);
+		vec4.transformMat4(up4, up4, viewMatrix);
 		let up = vec3.fromValues(up4[0], up4[1], up4[2]);
 		vec3.normalize(up, up);
 
@@ -97,14 +97,16 @@ function Fly()
 		vec3.cross(upCam, right, forward);
 		vec3.normalize(upCam, upCam);
 
-		let totalTrans = vec3.fromValues(forward[0] * deltaS[2] + upCam[0] * deltaS[1] + right[0]*deltaS[0], 
-										forward[1] * deltaS[2] + upCam[1] * deltaS[1] + right[1]*deltaS[0],
-										forward[2] * deltaS[2] + upCam[2] * deltaS[1] + right[2]*deltaS[0]);
+		let totalTrans = vec3.fromValues(forward[0] * deltaS[2] + upCam[0] * deltaS[1] + right[0] * deltaS[0], 
+										 forward[1] * deltaS[2] + upCam[1] * deltaS[1] + right[1] * deltaS[0],
+										 forward[2] * deltaS[2] + upCam[2] * deltaS[1] + right[2] * deltaS[0]);
         let translation = mat4.create();
         mat4.translate(translation, translation, totalTrans);
         mat4.multiply(viewMatrix, translation, viewMatrix);
         
-        _viewMatrix = mat4.clone(viewMatrix);
+		// console.log(viewMatrix, _viewMatrix);
+		mat4.copy(_viewMatrix, viewMatrix);
+
 
 		return true;
 	}
