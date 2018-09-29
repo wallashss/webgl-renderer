@@ -33,6 +33,8 @@ function Camera()
 	this.velocityScale = 1.0;
 	
 	this.manipulatorType = 0;
+
+	this.onKey = () => {};
 	
 	
 	this.setExamineMode();
@@ -108,6 +110,11 @@ Camera.prototype.setFlyMode = function()
 	
 }
 
+Camera.prototype.setOnKey = function(callback = () =>{})
+{
+	this.onKey = callback;
+}
+
 Camera.prototype.setExamineMode = function()
 {
 	this.manipulatorType = EXAMINE_MANIPULATOR_TYPE;
@@ -178,6 +185,15 @@ Camera.prototype.moveRight = function(v)
 	}
 }
 
+Camera.prototype.reset = function()
+{
+	this.state.right = 0.0;
+	this.state.left = 0.0;
+	this.state.up = 0.0;
+	this.state.down = 0.0;
+	this.state.forward = 0.0;
+	this.state.backward = 0.0;
+}
 					 
 Camera.prototype.installCamera = function(element, drawcallback)
 {
@@ -186,19 +202,22 @@ Camera.prototype.installCamera = function(element, drawcallback)
 	let mouseState = this.mouseState;
 	if(element)
 	{
-		element.addEventListener("mousedown", function(e)
+		window.addEventListener("mousedown", (e) =>
 		{
-			mouseState.mousePress = true;
-			mouseState.x = e.clientX;
-			mouseState.y = e.clientY;
+			if(e.target === element)
+			{
+				mouseState.mousePress = true;
+				mouseState.x = e.clientX;
+				mouseState.y = e.clientY;
+			}
 		});
 		
-		element.addEventListener("mouseup", function(e)
+		window.addEventListener("mouseup", (e) =>
 		{
 			mouseState.mousePress = false;
 		});
 		
-		element.addEventListener("mousemove", function(e)
+		window.addEventListener("mousemove", (e) =>
 		{
 			if(self.mouseState.mousePress)
 			{
@@ -252,7 +271,9 @@ Camera.prototype.installCamera = function(element, drawcallback)
 		{
 			if(document.activeElement)
 			{
-				if(document.activeElement.tagName === "textarea" || document.activeElement.tagName === "input" || document.activeElement.tagName === "select")
+				if(document.activeElement.tagName === "TEXTAREA" || 
+				   document.activeElement.tagName === "INPUT" || 
+				   document.activeElement.tagName === "SELECT")
 				{
 					return;
 				}
@@ -284,8 +305,24 @@ Camera.prototype.installCamera = function(element, drawcallback)
 			
 		});
 		
-		window.addEventListener("keyup", function(e)
+		element.addEventListener("blur", () =>
+		{	
+			self.reset();
+		});
+
+
+		window.addEventListener("keyup", (e) =>
 		{
+			if(document.activeElement)
+			{
+				if(document.activeElement.tagName === "TEXTAREA" || 
+				   document.activeElement.tagName === "INPUT" || 
+				   document.activeElement.tagName === "SELECT")
+				{
+					self.reset();
+					return;
+				}
+			}
 			if(e.key === "W" || e.key === "w" || e.key === "ArrowUp")
 			{
 				self.state.up = 0.0;
@@ -304,6 +341,8 @@ Camera.prototype.installCamera = function(element, drawcallback)
 			{
 				self.state.right = 0.0;
 			}
+
+			self.onKey(e);
 		});
 		
 	}
