@@ -29,10 +29,6 @@ function Framebuffer(gl, width, height)
     let _width  = width;
     let _height = height;
 
-    let _vWidth = 0;
-    let _vHeight = 0;
-
-    let _framebufferSize = 0;
 
     let _textures = [];
     let _depthTexture = null;
@@ -45,7 +41,7 @@ function Framebuffer(gl, width, height)
     Framebuffer.defaultShader = null;
     Framebuffer.defaultAttrib = null;
 
-    function _createDefaultShader(self)
+    function _createDefaultProgram()
     {
         let defaultProgram = ShaderBuilder.createProgram(Shaders.FRAMEBUFFER_VERTEX_SHADER_SOURCE, Shaders.FRAMEBUFFER_FRAGMENT_SHADER_SOURCE, gl);
         if(defaultProgram)
@@ -59,6 +55,25 @@ function Framebuffer(gl, width, height)
         else
         {
             console.log("Failed to load default framebuffer program");
+        }
+    }
+
+    function _createDefaultDepthProgram()
+    {
+        let program = ShaderBuilder.createProgram(Shaders.FRAMEBUFFER_VERTEX_SHADER_SOURCE, Shaders.FRAMEBUFFER_DEPTH_FRAGMENT_SHADER_SOURCE, gl);
+        if(program)
+        {
+            gl.useProgram(program);
+            Framebuffer.defaultDepthAttrib = gl.getAttribLocation(program, "position");
+            Framebuffer.texDepthSamplerUniform = gl.getUniformLocation(program, "texSampler");
+            Framebuffer.nearUniform = gl.getUniformLocation(program, "near");
+            Framebuffer.farUniform = gl.getUniformLocation(program, "far");
+            gl.useProgram(null);
+            Framebuffer.defaultDepthProgram = program;
+        }
+        else
+        {
+            console.log("Failed to load default depth framebuffer program");
         }
     }
 
@@ -168,6 +183,18 @@ function Framebuffer(gl, width, height)
             console.log("Framebuffer with no textures!");
             return;
         }
+
+        let texture = null;
+        if(texture >= 0)
+        {
+            texture = _textures[idx];
+        }
+
+        if(!texture)
+        {
+            return;
+        }
+
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.disable(gl.DEPTH_TEST);
         // gl.disable(gl.CULL_FACE);
@@ -178,10 +205,7 @@ function Framebuffer(gl, width, height)
         gl.enableVertexAttribArray(Framebuffer.defaultAttrib);
         gl.vertexAttribPointer(Framebuffer.defaultAttrib, 2, gl.FLOAT, false, vertexSize, 0);
 
-        // let texSamplerUniform = gl.getUniformLocation(Framebuffer.defaultProgram, "texSampler");
-        // let sizeUniform = gl.getUniformLocation(Framebuffer.defaultProgram, "size");
-
-        let texture = _textures[idx];
+        
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, texture.textureId);
 
@@ -191,6 +215,40 @@ function Framebuffer(gl, width, height)
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         gl.disableVertexAttribArray(Framebuffer.defaultAttrib);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.useProgram(null);
+        // gl.enable(gl.CULL_FACE);
+        gl.enable(gl.DEPTH_TEST);
+    }
+
+    this.drawDepth = function(near, far)
+    {
+        if(!_depthTexture)
+        {
+            return;
+        }
+
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.disable(gl.DEPTH_TEST);
+        gl.useProgram(Framebuffer.defaultDepthProgram);
+        
+        const vertexSize = 2 * 4
+        gl.bindBuffer(gl.ARRAY_BUFFER, Framebuffer.defaultQuad);
+        gl.enableVertexAttribArray(Framebuffer.defaultDepthAttrib);
+        gl.vertexAttribPointer(Framebuffer.defaultDepthAttrib, 2, gl.FLOAT, false, vertexSize, 0);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, _depthTexture);
+
+        gl.uniform1i(Framebuffer.texDepthSamplerUniform, 0);
+        gl.uniform1f(Framebuffer.nearUniform, near);
+        gl.uniform1f(Framebuffer.farUniform, far);
+        // gl.uniform2f(Framebuffer.sizeUniform, _vWidth, _vHeight);
+        
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        gl.disableVertexAttribArray(Framebuffer.defaultDepthAttrib);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.bindTexture(gl.TEXTURE_2D, null);
         gl.useProgram(null);
@@ -248,7 +306,12 @@ function Framebuffer(gl, width, height)
 
         if(!Framebuffer.defaultProgram)
         {
-            _createDefaultShader(self);
+            _createDefaultProgram(self);
+        }
+
+        if(!Framebuffer.defaultDepthProgram)
+        {
+            _createDefaultDepthProgram();
         }
         
         if(!Framebuffer.defaultQuad)

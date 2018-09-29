@@ -262,3 +262,31 @@ void main(void)
     gl_FragColor = texture2D(texSampler, pos);
 }
 `
+
+exports.FRAMEBUFFER_DEPTH_FRAGMENT_SHADER_SOURCE = 
+`
+precision mediump float;
+varying vec2 pos; 
+uniform sampler2D texSampler;
+uniform float near;
+uniform float far;
+
+float linearizeDepth(float z_b)
+{
+    //float z_n = 2.0 * z_b - 1.0;
+    // return 2.0 * near * far / (far + near - z_n * (far - near));
+    // return (far * near) / (far + near - z_b * (far - near));
+
+
+    return near * far / (far + z_b * (near - far));
+}
+
+void main(void)
+{
+    float texel = texture2D(texSampler, pos).x;
+
+    float d = 1.0 - linearizeDepth(texel);
+
+    gl_FragColor = vec4(d, d, d, 1.0);
+}
+`

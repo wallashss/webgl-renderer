@@ -310,7 +310,6 @@ Camera.prototype.installCamera = function(element, drawcallback)
 			self.reset();
 		});
 
-
 		window.addEventListener("keyup", (e) =>
 		{
 			if(document.activeElement)

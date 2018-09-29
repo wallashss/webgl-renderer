@@ -701,7 +701,7 @@ function Renderer()
 		
 		textureMap[textureName] = textureId;
 		
-		self.draw();
+		// self.draw();
 	}
 
 	this.clearBatches = function()
@@ -728,7 +728,7 @@ function Renderer()
 		
 		if(batchesKeys.length === 0 && lines.length === 0 && this.points.length === 0)
 		{
-			return;
+			return false;
 		}
 	
 		// Bind shader
@@ -1065,6 +1065,8 @@ function Renderer()
 		gl.useProgram(null);
 		enableAttribs([]);
 		enabledVertexAttribMap = [];
+
+		return true;
 	}
 
 	this.updateViewBounds = function()
@@ -1084,7 +1086,7 @@ function Renderer()
 			gl.viewport(x, y, width, height);
 			if(willDraw)
 			{
-				self.draw();
+				// self.draw();
 			}
 		}
 	}
@@ -1102,7 +1104,7 @@ function Renderer()
 				// gl.viewport(0, 0, canvas.width, canvas.height);
 				if(willDraw)
 				{
-					self.draw();
+					// self.draw();
 				}
 			}
 		}
