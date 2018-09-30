@@ -117,6 +117,7 @@ void main (void)
     gl_Position =  modelViewProjection *  vec4(translation + position , 1.0);
     
     currentColor = colorInstance;
+    // currentColor = vec4(gl_VertexID, gl_VertexID, gl_VertexID, 1.0);
 
     vTexcoord = texcoord;
 

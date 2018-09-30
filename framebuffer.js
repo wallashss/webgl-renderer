@@ -75,7 +75,7 @@ function Framebuffer(gl, width, height)
         }
     }
 
-    this.addTexture = function(attach, internalFormat, format, type)
+    this.addTexture = function(attach = 0, internalFormat = gl.RGBA, format =  gl.RGBA, type= gl.UNSIGNED_BYTE)
     {
         let textureId = gl.createTexture();
         buildTexture(textureId, attach, internalFormat, format, type);

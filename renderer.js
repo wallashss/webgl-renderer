@@ -28,7 +28,8 @@ function Renderer()
 	let batches = {};
 	let lines = [];
 	this.points = [];
-	let textureMap = {};
+	this.textureMap = {};
+
 	let hasInstancing = false;
 	let hasDrawBuffer = false;
 	let backgroundColor = {r: 0.5, g: 0.5, b: 0.5, a: 1.0};
@@ -99,17 +100,6 @@ function Renderer()
 		let a3 = ((0x0000FF00 & iValue) >> 8) /255.0;
 		// let a4 = ((0x000000FF & iValue)) /255.0;
 		let out = vec4.fromValues(a1, a2, a3, 1);
-		return out;
-	}
-
-	function intToVec4b(iValue)
-	{
-		iValue = iValue << 8;
-		let out = new Uint8Array(4);
-		out[0] = (0xFF000000 & iValue) >> 24 ;
-		out[1] = (0x00FF0000 & iValue) >> 16 ;
-		out[2] = (0x0000FF00 & iValue) >> 8 ;
-		out[3] = 255;
 		return out;
 	}
 
@@ -369,6 +359,31 @@ function Renderer()
 		}
 	}
 
+	this.getBatch = function(id)
+	{
+		if(batches.hasOwnProperty(id))
+		{
+			return batches[id];
+		}
+		return null;
+	}
+
+	this.addBatch = function(b, idx = null)
+	{
+		if(idx)
+		{
+			batchesKeys.push(idx);
+			batches[idx] = b;
+		}
+		else
+		{
+			let idx = _nextInstanceId; // we must resever alpha component
+			_nextInstanceId++;
+		}
+
+		return null;
+	}
+
 	this.addPointMesh = function(meshId, points, colors, transform, textureName = null, unlit = false, isBillboard = false)
 	{
 		const outIdx = _nextInstanceId;
@@ -620,6 +635,14 @@ function Renderer()
 		{
 			let b = batches[idx];
 
+			if(color[3] >= 1)
+			{
+				b.useBlending = false;
+			}
+			else
+			{
+				b.useBlending = true;
+			}
 			if(!b.isInstance)
 			{
 				b.color = color;
@@ -741,7 +764,7 @@ function Renderer()
 		
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		
-		textureMap[textureName] = textureId;
+		self.textureMap[textureName] = textureId;
 		
 		// self.draw();
 	}
@@ -768,9 +791,9 @@ function Renderer()
 			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		}
 		
-		if(batchesKeys.length === 0 && lines.length === 0 && this.points.length === 0)
+		if(!self.hasBatches())
 		{
-			return false;
+			return;
 		}
 	
 		// Bind shader
@@ -936,9 +959,9 @@ function Renderer()
 				currentElementBufferId = b.mesh.elementsBufferId;
 			}
 			
-			if(b.textureName && textureMap.hasOwnProperty(b.textureName) )
+			if(b.textureName && self.textureMap.hasOwnProperty(b.textureName) )
 			{
-				let textureId = textureMap[b.textureName];
+				let textureId = self.textureMap[b.textureName];
 				if(currentTextureId !== textureId)
 				{
 					gl.uniform1i(program.texSamplerUniform, 0);
@@ -1204,6 +1227,8 @@ function Renderer()
 
 		newRenderer.setCanvasElement(canvas.element);
 
+		newRenderer.textureMap = self.textureMap;
+
 		for(let k in programsMap)
 		{
 			newRenderer.addProgram(programsMap[k], k);
@@ -1214,6 +1239,15 @@ function Renderer()
 		newRenderer.setProjectionMatrix(_projectionMatrix);
 		newRenderer.setViewMatrix(_viewMatrix);
 		return newRenderer;
+	}
+
+	this.hasBatches = function()
+	{
+		if(batchesKeys.length === 0 && lines.length === 0 && this.points.length === 0)
+		{
+			return false;
+		}
+		return true;
 	}
 
 	this.loadExtensions = function()
