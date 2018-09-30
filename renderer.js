@@ -1142,13 +1142,9 @@ function Renderer()
 
 	this.setViewport = function(x, y, width, height, willDraw = false)
 	{
-		if(mainProgram)
+		if(gl)
 		{
 			gl.viewport(x, y, width, height);
-			if(willDraw)
-			{
-				// self.draw();
-			}
 		}
 	}
 
