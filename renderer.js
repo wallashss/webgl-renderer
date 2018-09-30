@@ -126,6 +126,10 @@ function Renderer()
 
 	function setAttribDivisors(attribs, size)
 	{
+		if(!Array.isArray(attribs))
+		{
+			attribs = [attribs];
+		}
 		for(let i = 0; i < attribs.length; i++)
 		{
 			let a = attribs[i];
@@ -191,6 +195,11 @@ function Renderer()
 				attribs.push(colorInstance);
 			}
 
+			if(translation >= 0)
+			{
+				attribs.push(translation);
+			}
+
 			// if(pickingInstance >= 0)
 			// {
 			// 	attribs.push(pickingInstance);
@@ -223,7 +232,7 @@ function Renderer()
 			let texSamplerUniform = gl.getUniformLocation(program, "texSampler");
 			// let pickingUniform = gl.getUniformLocation(program, "picking");
 
-			let isInstance = programId === Renderer.INSTACE_PROGRAM || Renderer.POINTMESH_PROGRAM;//  || programId === Renderer.INSTANCE_PICKING_PROGRAM;
+			let isInstance = programId === Renderer.INSTACE_PROGRAM || programId === Renderer.POINTMESH_PROGRAM;//  || programId === Renderer.INSTANCE_PICKING_PROGRAM;
 
 			let newProgram = {program: program,
 					positionVertex: positionVertex,
@@ -360,7 +369,7 @@ function Renderer()
 		}
 	}
 
-	this.addPointMesh = function(meshId, points, colors, textureName = null, unlit = false, isBillboard = false)
+	this.addPointMesh = function(meshId, points, colors, transform, textureName = null, unlit = false, isBillboard = false)
 	{
 		const outIdx = _nextInstanceId;
 		let pointsBufferId = gl.createBuffer();
@@ -396,7 +405,7 @@ function Renderer()
 			color: vec4.fromValues(1, 1, 1, 1),
 			visible: true,
 			firstIdx: outIdx,
-			transform: mat4.create(),
+			transform: transform || mat4.create(),
 			// pickBufferId: pickBufferId,
 			useBlending: useBlending,
 			unlit : unlit || false,
@@ -832,14 +841,12 @@ function Renderer()
 
 			if(b.isBillboard !== billboardSet)
 			{
-				console.log(b.programId);
-				console.log(b.program);
 				billboardSet = b.isBillboard;
 				gl.uniform1f(currentProgram.isBillboardUniform, billboardSet ? 1.0 : 0.0);
 			}
 			
 			// Matrices
-			if(!currentProgram.isInstance || mat4.isPointMesh)
+			if(!currentProgram.isInstance || b.isPointMesh)
 			{
 				mat4.copy(m, b.transform);
 			}
@@ -887,7 +894,7 @@ function Renderer()
 				if(currentModelBufferId !== b.modelBufferId && b.isPointMesh)
 				{
 					gl.bindBuffer(gl.ARRAY_BUFFER, b.modelBufferId);
-					gl.vertexAttribPointer(currentProgram.translation, 3, gl.FLOAT, true, 3 * 4, 0);
+					gl.vertexAttribPointer(currentProgram.translation, 3, gl.FLOAT, false, 3 * 4, 0);
 					setAttribDivisors(currentProgram.translation, 1);
 					currentModelBufferId = b.modelBufferId;
 				}
