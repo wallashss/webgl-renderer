@@ -8,9 +8,9 @@ uniform highp mat4 modelView;
 uniform highp mat4 modelViewProjection;
 uniform highp mat4 normalMatrix;
 uniform vec4 color;
-uniform highp vec4 picking;
+// uniform highp vec4 picking;
 
-varying vec4 vPicking;
+// varying vec4 vPicking;
 varying vec4 currentColor;
 varying vec3 vPosition;
 varying vec3 vNormal;
@@ -25,7 +25,7 @@ void main (void)
 
     vTexcoord = texcoord;
 
-    vPicking = picking;
+    // vPicking = picking;
     vec4 vPosition4 = modelView * vec4(position, 1.0);
     vPosition = vPosition4.xyz / vPosition4.w;
     
@@ -43,7 +43,7 @@ attribute vec3 normal;
 attribute vec2 texcoord;
 attribute highp mat4 model;
 attribute vec4 colorInstance;
-attribute vec4 pickingInstance;
+// attribute vec4 pickingInstance;
 
 uniform highp mat4 projection;
 uniform highp mat4 modelViewProjection;
@@ -52,7 +52,7 @@ uniform highp mat4 normalMatrix;
 uniform float isBillboard;
 uniform vec4 color;
 
-varying highp vec4 vPicking;
+// varying highp vec4 vPicking;
 varying vec4 currentColor;
 varying vec3 vPosition;
 varying vec3 vNormal;
@@ -61,7 +61,6 @@ varying vec2 vTexcoord;
 
 void main (void)
 {
-
     if(isBillboard > 0.0)
     {
         gl_Position =  projection * (modelView * model * vec4(0, 0, 0, 1.0) + model * vec4(position, 0));
@@ -78,27 +77,28 @@ void main (void)
     vec4 vPosition4 = modelView  * model * vec4(position, 1.0);
     vPosition = vPosition4.xyz / vPosition4.w;
     
-    vPicking = pickingInstance;
+    // vPicking = pickingInstance;
     vNormal = mat3(modelView) * mat3(model) * normal;
     vNormal = normalize(vNormal);
 }
 `
 
-exports.INSTANCE_VERTEX_SHADER_BILLBOARD =
+exports.INSTANCE_POINT_MESH_VERTEX_SHADER =
 `
 attribute vec3 position;
 attribute vec3 normal;
 attribute vec2 texcoord;
-attribute highp mat4 model;
+attribute vec3 translation;
 attribute vec4 colorInstance;
-attribute vec4 pickingInstance;
 
+uniform highp mat4 projection;
 uniform highp mat4 modelViewProjection;
 uniform highp mat4 modelView;
 uniform highp mat4 normalMatrix;
+uniform float isBillboard;
 uniform vec4 color;
 
-varying highp vec4 vPicking;
+// varying highp vec4 vPicking;
 varying vec4 currentColor;
 varying vec3 vPosition;
 varying vec3 vNormal;
@@ -107,18 +107,24 @@ varying vec2 vTexcoord;
 
 void main (void)
 {
-
-    gl_Position =  modelViewProjection * model * vec4(position, 1.0);
+    if(isBillboard > 0.0)
+    {
+        gl_Position =  projection * (modelView * vec4(0, 0, 0, 1.0) +  vec4(translation + position, 0));
+        currentColor = colorInstance;
+        vNormal = normalize(mat3(modelView) * normal);
+        return;
+    }
+    gl_Position =  modelViewProjection *  vec4(translation , 1.0);
     
     currentColor = colorInstance;
 
     vTexcoord = texcoord;
 
-    vec4 vPosition4 = modelView  * model * vec4(position, 1.0);
+    vec4 vPosition4 = modelView  *  vec4(position, 1.0);
     vPosition = vPosition4.xyz / vPosition4.w;
     
-    vPicking = pickingInstance;
-    vNormal = mat3(modelView) * mat3(model) * normal;
+    // vPicking = pickingInstance;
+    vNormal = mat3(modelView) * normal;
     vNormal = normalize(vNormal);
 }
 `

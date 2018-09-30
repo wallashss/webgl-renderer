@@ -2,12 +2,9 @@
 
 const Shaders = require("./shaders");
 const ShaderBuilder = require("./shaderbuilder");
-const FrameBuffer = require("./framebuffer");
+
 // Global gl context... It is nice to debug.
 let gl = null;
-
-let TARGET_FPS = 60.0;
-let dt = 1.0 / TARGET_FPS;
 
 const glMatrix = require("gl-matrix");
 const vec3 = glMatrix.vec3;
@@ -19,8 +16,9 @@ function Renderer()
 	let self = this;
 	
 	let mainProgram = null;
-
 	let instanceProgram = null;
+	let pointMeshProgram = null;
+	
 	let pickProgram = null;
 	let instancePickProgram = null;
 	let programsMap = {}
@@ -37,7 +35,6 @@ function Renderer()
 	let canvas = {width: 0, 
 				  height: 0, 
 				  element: undefined};
-	let isAnimating = false;
 
 	let _viewMatrix = mat4.create();
 	let _projectionMatrix = mat4.create();
@@ -170,7 +167,9 @@ function Renderer()
 
 			let colorInstance = gl.getAttribLocation(program, "colorInstance");
 
-			let pickingInstance = gl.getAttribLocation(program, "pickingInstance");
+			let translation = gl.getAttribLocation(program, "translation");
+
+			// let pickingInstance = gl.getAttribLocation(program, "pickingInstance");
 
 			let attribs = [];
 			if(positionVertex >= 0)
@@ -192,10 +191,10 @@ function Renderer()
 				attribs.push(colorInstance);
 			}
 
-			if(pickingInstance >= 0)
-			{
-				attribs.push(pickingInstance);
-			}
+			// if(pickingInstance >= 0)
+			// {
+			// 	attribs.push(pickingInstance);
+			// }
 
 			let modelAttribs = []
 
@@ -222,9 +221,9 @@ function Renderer()
 			let unlitUniform = gl.getUniformLocation(program, "unlit");
 			let isBillboardUniform = gl.getUniformLocation(program, "isBillboard");
 			let texSamplerUniform = gl.getUniformLocation(program, "texSampler");
-			let pickingUniform = gl.getUniformLocation(program, "picking");
+			// let pickingUniform = gl.getUniformLocation(program, "picking");
 
-			let isInstance = programId === Renderer.INSTACE_PROGRAM || programId === Renderer.INSTANCE_PICKING_PROGRAM;
+			let isInstance = programId === Renderer.INSTACE_PROGRAM || Renderer.POINTMESH_PROGRAM;//  || programId === Renderer.INSTANCE_PICKING_PROGRAM;
 
 			let newProgram = {program: program,
 					positionVertex: positionVertex,
@@ -232,7 +231,8 @@ function Renderer()
 					texcoord: texcoord,
 					model: model,
 					colorInstance: colorInstance,
-					pickingInstance: pickingInstance,
+					translation: translation,
+					// pickingInstance: pickingInstance,
 					projectionUniform: projection,
 					modelViewProjectionUniform: modelViewProjection,
 					modelViewUniform: modelViewUniform,
@@ -242,7 +242,7 @@ function Renderer()
 					useTextureUniform: useTextureUniform,
 					unlitUniform: unlitUniform,
 					isBillboardUniform: isBillboardUniform,
-					pickingUniform: pickingUniform,
+					// pickingUniform: pickingUniform,
 					texSamplerUniform: texSamplerUniform,
 					id: programId,
 					attribs: attribs,
@@ -257,22 +257,6 @@ function Renderer()
 
 	this.addProgram = function(newProgram, programId)
 	{
-		if(programId === Renderer.DEFAULT_PROGRAM)
-		{
-			mainProgram = newProgram;
-		}
-		else if(programId === Renderer.INSTACE_PROGRAM)
-		{
-			instanceProgram = newProgram;
-		}
-		else if(programId === Renderer.PICKING_PROGRAM)
-		{
-			pickProgram = newProgram;
-		}
-		else if(programId === Renderer.INSTANCE_PICKING_PROGRAM)
-		{
-			instancePickProgram = newProgram;
-		}
 		programsMap[programId] = newProgram;
 	}
 
@@ -376,6 +360,63 @@ function Renderer()
 		}
 	}
 
+	this.addPointMesh = function(meshId, points, colors, textureName = null, unlit = false, isBillboard = false)
+	{
+		const outIdx = _nextInstanceId;
+		let pointsBufferId = gl.createBuffer();
+		
+		let pointsCount = points.length / 3;
+		
+		// Upload points
+		gl.bindBuffer(gl.ARRAY_BUFFER, pointsBufferId);
+		gl.bufferData(gl.ARRAY_BUFFER, points, gl.STATIC_DRAW);
+
+		// Upload colors
+		let colorBufferId = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, colorBufferId);
+
+		let useBlending = false;
+		// let colorsCount = colors.length / 4;
+		for(let i = 0; i < pointsCount; i++)
+		{
+			if(colors[i*4+3] < 255)
+			{
+				useBlending = true;
+				break;
+			}
+		}
+		gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+
+		
+		let b = {mesh : meshId,
+			modelBufferId: pointsBufferId,
+			instanceCount: pointsCount,
+			colorBufferId: colorBufferId,
+			textureName: textureName,
+			color: vec4.fromValues(1, 1, 1, 1),
+			visible: true,
+			firstIdx: outIdx,
+			transform: mat4.create(),
+			// pickBufferId: pickBufferId,
+			useBlending: useBlending,
+			unlit : unlit || false,
+			isBillboard: true,
+			isPointMesh: true,
+			programId: Renderer.POINTMESH_PROGRAM,
+			isInstance: true}
+	
+		// for(let i = 0 ; i < instanceCount; i++)
+		// {
+		// 	let idx = outIdx + i;
+		// 	batches[idx] = b;	
+		// }
+		batches[outIdx] = b;	
+		batchesKeys.push(outIdx);
+		_nextInstanceId++;
+		return outIdx;
+		
+	}
+
 	function _addInstance(mesh, colors, matrices, textureName, unlit = false, isBillboard = false)
 	{
 		const outIdx = _nextInstanceId;
@@ -436,22 +477,13 @@ function Renderer()
 				gl.bufferData(gl.ARRAY_BUFFER, matricesArray, gl.STATIC_DRAW);
 			}
 
-			// Upload ids
 			_nextInstanceId += instanceCount;
-			let pickBufferId = gl.createBuffer();
-			let pickArray = new Uint8Array(instanceCount * 4);
+
 			for(let i = 0 ; i < instanceCount; i++)
 			{
 				let idx = outIdx + i; 
 				out.push(idx);
-				let p = intToVec4b(idx);
-				for(let j = 0; j < 4; j++)
-				{
-					pickArray[i*4 + j] = p[j];
-				}
 			}
-			gl.bindBuffer(gl.ARRAY_BUFFER, pickBufferId);
-			gl.bufferData(gl.ARRAY_BUFFER, pickArray, gl.STATIC_DRAW);
 
 			// Upload colors
 			let colorBufferId = gl.createBuffer();
@@ -496,7 +528,7 @@ function Renderer()
 				textureName: textureName,
 				visible: true,
 				firstIdx: outIdx,
-				pickBufferId: pickBufferId,
+				// pickBufferId: pickBufferId,
 				useBlending: useBlending,
 				unlit : unlit || false,
 				isBillboard: isBillboard || false,
@@ -512,6 +544,7 @@ function Renderer()
 		}
 		return out;
 	}
+
 	this.addInstances = function(mesh, colors, matrices, textureName, unlit, isBillboard)
 	{
 		if(!matrices)
@@ -763,24 +796,13 @@ function Renderer()
 			{
 				program = mainProgram;
 			}
-			if(b.programId === Renderer.DEFAULT_PROGRAM && self.drawPicking)
+
+			program = programsMap[b.programId];
+
+			if(program === null)
 			{
-				program = pickProgram;
-			}
-			else if(b.programId === Renderer.INSTACE_PROGRAM)
-			{
-				program = instanceProgram;
-			}
-			else if(programsMap.hasOwnProperty(b.programId))
-			{
-				program = programsMap[b.programId];
-			}
-			else
-			{
-				console.log("Error! Program not found!");
 				continue;
 			}
-
 
 			if(currentProgram !== program)
 			{
@@ -810,12 +832,14 @@ function Renderer()
 
 			if(b.isBillboard !== billboardSet)
 			{
+				console.log(b.programId);
+				console.log(b.program);
 				billboardSet = b.isBillboard;
 				gl.uniform1f(currentProgram.isBillboardUniform, billboardSet ? 1.0 : 0.0);
 			}
 			
 			// Matrices
-			if(!currentProgram.isInstance)
+			if(!currentProgram.isInstance || mat4.isPointMesh)
 			{
 				mat4.copy(m, b.transform);
 			}
@@ -860,7 +884,14 @@ function Renderer()
 
 			if(currentProgram.isInstance)
 			{
-				if(currentModelBufferId !== b.modelBufferId)
+				if(currentModelBufferId !== b.modelBufferId && b.isPointMesh)
+				{
+					gl.bindBuffer(gl.ARRAY_BUFFER, b.modelBufferId);
+					gl.vertexAttribPointer(currentProgram.translation, 3, gl.FLOAT, true, 3 * 4, 0);
+					setAttribDivisors(currentProgram.translation, 1);
+					currentModelBufferId = b.modelBufferId;
+				}
+				else if(currentModelBufferId !== b.modelBufferId)
 				{
 					gl.bindBuffer(gl.ARRAY_BUFFER, b.modelBufferId);
 					let rowSize = 4 * 4 ; //  4 columns * 4 bytes
@@ -882,14 +913,14 @@ function Renderer()
 					currentColorBufferId = b.colorBufferId;
 				}
 
-				if(currentPickBufferId !== b.pickBufferId)
-				{
-					let pickSize = 4;
-					gl.bindBuffer(gl.ARRAY_BUFFER, b.pickBufferId);
-					gl.vertexAttribPointer(currentProgram.pickingInstance, 4, gl.UNSIGNED_BYTE, true, pickSize, 0);
-					setAttribDivisors([currentProgram.pickingInstance], 1);
-					currentPickBufferId = b.pickBufferId;
-				}
+				// if(currentPickBufferId !== b.pickBufferId)
+				// {
+				// 	let pickSize = 4;
+				// 	gl.bindBuffer(gl.ARRAY_BUFFER, b.pickBufferId);
+				// 	gl.vertexAttribPointer(currentProgram.pickingInstance, 4, gl.UNSIGNED_BYTE, true, pickSize, 0);
+				// 	setAttribDivisors([currentProgram.pickingInstance], 1);
+				// 	currentPickBufferId = b.pickBufferId;
+				// }
 			}
 			
 			if(currentElementBufferId !== b.mesh.elementsBufferId)
@@ -1166,10 +1197,12 @@ function Renderer()
 
 		newRenderer.setCanvasElement(canvas.element);
 
-		newRenderer.addProgram(mainProgram, Renderer.DEFAULT_PROGRAM);
-		newRenderer.addProgram(instanceProgram, Renderer.INSTACE_PROGRAM);
-		newRenderer.addProgram(pickProgram, Renderer.PICKING_PROGRAM);
-		newRenderer.addProgram(instancePickProgram, Renderer.INSTANCE_PICKING_PROGRAM);
+		for(let k in programsMap)
+		{
+			newRenderer.addProgram(programsMap[k], k);
+		}
+		// newRenderer.addProgram(pickProgram, Renderer.PICKING_PROGRAM);
+		// newRenderer.addProgram(instancePickProgram, Renderer.INSTANCE_PICKING_PROGRAM);
 
 		newRenderer.setProjectionMatrix(_projectionMatrix);
 		newRenderer.setViewMatrix(_viewMatrix);
@@ -1253,17 +1286,19 @@ function Renderer()
 		if(hasInstancing)
 		{
 			self.loadShaders(Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.INSTACE_PROGRAM);
+
+			self.loadShaders(Shaders.INSTANCE_POINT_MESH_VERTEX_SHADER, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.POINTMESH_PROGRAM);
 		}
 
-		if(hasDrawBuffer)
-		{
-			self.loadShaders(Shaders.VERTEX_SHADER_SOURCE, Shaders.PICK_FRAGMENT_SHADER_SOURCE, Renderer.PICKING_PROGRAM);
-		}
+		// if(hasDrawBuffer)
+		// {
+		// 	self.loadShaders(Shaders.VERTEX_SHADER_SOURCE, Shaders.PICK_FRAGMENT_SHADER_SOURCE, Renderer.PICKING_PROGRAM);
+		// }
 
-		if(hasDrawBuffer && hasInstancing)
-		{
-			self.loadShaders(Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.PICK_FRAGMENT_SHADER_SOURCE, Renderer.INSTANCE_PICKING_PROGRAM);
-		}
+		// if(hasDrawBuffer && hasInstancing)
+		// {
+		// 	self.loadShaders(Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.PICK_FRAGMENT_SHADER_SOURCE, Renderer.INSTANCE_PICKING_PROGRAM);
+		// }
 		
 		
 		// Set clear color
@@ -1299,29 +1334,6 @@ function Renderer()
 		return true;
 	}
 	
-	this.setDrawPicking = function(drawPicking)
-	{
-		if(hasDrawBuffer)
-		{
-			self.drawPicking = drawPicking;
-
-			if(self.drawPicking)
-			{
-				mainProgram = programsMap[Renderer.PICKING_PROGRAM];
-				instanceProgram = programsMap[Renderer.INSTANCE_PICKING_PROGRAM];
-				if(gl)
-				{
-					self.setBackgroundColor(0, 0, 0, 0);
-				}
-			}
-			else
-			{
-				mainProgram = programsMap[Renderer.DEFAULT_PROGRAM];
-				instanceProgram = programsMap[Renderer.INSTACE_PROGRAM];
-			}
-
-		}
-	}
 	this.getContext = function()
 	{
 		return gl;
@@ -1356,7 +1368,6 @@ function Renderer()
 
 Renderer.DEFAULT_PROGRAM = "_default";
 Renderer.INSTACE_PROGRAM = "_instance";
-Renderer.PICKING_PROGRAM = "_picking";
-Renderer.INSTANCE_PICKING_PROGRAM = "_instance_picking";
+Renderer.POINTMESH_PROGRAM = "_pointMesh";
 
 module.exports = Renderer;
