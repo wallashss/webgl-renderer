@@ -109,16 +109,14 @@ void main (void)
 {
     if(isBillboard > 0.0)
     {
-        gl_Position =  projection * (modelView * vec4(0, 0, 0, 1.0) +  vec4(translation + position, 0));
-        // currentColor = colorInstance;
-        currentColor = vec4(1, 0, 1, 1);
+        gl_Position =  projection * (modelView * vec4(translation, 1.0) +  vec4(position, 0));
+        currentColor = colorInstance;
         vNormal = normalize(mat3(modelView) * normal);
         return;
     }
     gl_Position =  modelViewProjection *  vec4(translation + position , 1.0);
     
     currentColor = colorInstance;
-    // currentColor = vec4(1, 0, 0, 1);
 
     vTexcoord = texcoord;
 
