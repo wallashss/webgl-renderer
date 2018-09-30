@@ -2,8 +2,6 @@
 
 const Shaders = require("./shaders");
 const ShaderBuilder = require("./shaderbuilder");
-const vec2 = require("gl-matrix").vec2;
-
 
 function uploadDefaultQuad(gl)
 {    
@@ -195,7 +193,7 @@ function Framebuffer(gl, width, height)
             return;
         }
 
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.disable(gl.DEPTH_TEST);
         // gl.disable(gl.CULL_FACE);
         gl.useProgram(Framebuffer.defaultProgram);
@@ -229,7 +227,7 @@ function Framebuffer(gl, width, height)
             return;
         }
 
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.disable(gl.DEPTH_TEST);
         gl.useProgram(Framebuffer.defaultDepthProgram);
         
