@@ -21,7 +21,9 @@ function Renderer()
 	
 	let pickProgram = null;
 	let instancePickProgram = null;
-	let programsMap = {}
+	let programsMap = {};
+
+	this.wireFrameBuffer = null;
 	
 	let dummyTexture = null;
 	let batchesKeys = [];
@@ -142,7 +144,7 @@ function Renderer()
 		
 	}
 
-	this.loadShaders = function(vertexSource, fragmentSource, id)
+	this.loadShaders = function(id, vertexSource, fragmentSource, isInstance)
 	{
 		let programId = id ? id : "_default";
 		gl.useProgram(null);
@@ -164,6 +166,8 @@ function Renderer()
 			let colorInstance = gl.getAttribLocation(program, "colorInstance");
 
 			let translation = gl.getAttribLocation(program, "translation");
+
+			let barycentric = gl.getAttribLocation(program, "barycentric");
 
 			// let pickingInstance = gl.getAttribLocation(program, "pickingInstance");
 
@@ -190,6 +194,11 @@ function Renderer()
 			if(translation >= 0)
 			{
 				attribs.push(translation);
+			}
+
+			if(barycentric >= 0)
+			{
+				attribs.push(barycentric);
 			}
 
 			// if(pickingInstance >= 0)
@@ -224,7 +233,7 @@ function Renderer()
 			let texSamplerUniform = gl.getUniformLocation(program, "texSampler");
 			// let pickingUniform = gl.getUniformLocation(program, "picking");
 
-			let isInstance = programId === Renderer.INSTANCE_PROGRAM_ID || programId === Renderer.POINTMESH_PROGRAM_ID;//  || programId === Renderer.INSTANCE_PICKING_PROGRAM;
+			// let isInstance = programId === Renderer.INSTANCE_PROGRAM_ID || programId === Renderer.POINTMESH_PROGRAM_ID;//  || programId === Renderer.INSTANCE_PICKING_PROGRAM;
 
 			let newProgram = {program: program,
 					positionVertex: positionVertex,
@@ -233,6 +242,7 @@ function Renderer()
 					model: model,
 					colorInstance: colorInstance,
 					translation: translation,
+					barycentric: barycentric,
 					// pickingInstance: pickingInstance,
 					projectionUniform: projection,
 					modelViewProjectionUniform: modelViewProjection,
@@ -467,6 +477,7 @@ function Renderer()
 					transform: t,
 					color: c,
 					visible: true,
+					isWireframe: false,
 					textureName: textureName,
 					id: id,
 					programId: Renderer.DEFAULT_PROGRAM_ID,
@@ -558,6 +569,7 @@ function Renderer()
 				visible: true,
 				firstIdx: outIdx,
 				// pickBufferId: pickBufferId,
+				isWireframe: false,
 				useBlending: useBlending,
 				unlit : unlit || false,
 				isBillboard: isBillboard || false,
@@ -692,7 +704,24 @@ function Renderer()
 
 			b.visible = visible;
 		}
+	}
 
+	this.setWireframe = function(idx, wireframe)
+	{
+		if(batches.hasOwnProperty(idx))
+		{
+			let b = batches[idx];
+
+			b.isWireframe = wireframe;
+			if(b.isInstance)
+			{
+				b.programId = wireframe ? Renderer.INSTANCE_WIREFRAME_PROGRAM_ID : Renderer.INSTANCE_PROGRAM_ID;
+			}
+			else
+			{
+				b.programId = wireframe ? Renderer.DEFAULT_WIREFRAME_PROGRAM_ID : Renderer.DEFAULT_PROGRAM_ID;
+			}
+		}
 	}
 
 	this.addPoints = function(vertices, color, transform)
@@ -791,8 +820,6 @@ function Renderer()
 	this.draw = function()
 	{
 		// Clear screen
-
-		
 		if(!self.disableClearColor && !self.disableClearDepth)
 		{
 			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -927,6 +954,12 @@ function Renderer()
 				currentVertexBufferId = b.mesh.verticesBufferId;
 			}
 
+			if(b.isWireframe && self.wireFrameBuffer)
+			{
+				gl.bindBuffer(gl.ARRAY_BUFFER, self.wireFrameBuffer);
+				gl.vertexAttribPointer(currentProgram.barycentric, 3, gl.FLOAT, false, 3 * 4, 0);
+			}
+
 			if(currentProgram.isInstance)
 			{
 				if(currentModelBufferId !== b.modelBufferId && b.isPointMesh)
@@ -957,15 +990,6 @@ function Renderer()
 					setAttribDivisors([currentProgram.colorInstance], 1);
 					currentColorBufferId = b.colorBufferId;
 				}
-
-				// if(currentPickBufferId !== b.pickBufferId)
-				// {
-				// 	let pickSize = 4;
-				// 	gl.bindBuffer(gl.ARRAY_BUFFER, b.pickBufferId);
-				// 	gl.vertexAttribPointer(currentProgram.pickingInstance, 4, gl.UNSIGNED_BYTE, true, pickSize, 0);
-				// 	setAttribDivisors([currentProgram.pickingInstance], 1);
-				// 	currentPickBufferId = b.pickBufferId;
-				// }
 			}
 			
 			if(currentElementBufferId !== b.mesh.elementsBufferId)
@@ -1246,6 +1270,35 @@ function Renderer()
 		dummyTexture = texture;
 	}
 
+	this.loadWireframeBuffer = function(sizeBytes = Math.pow(2, 16))
+	{
+		let trianglesCount = Math.floor(sizeBytes / (3 * 3 * 4)); // 3 components x 3 vertices x 4 bytes per float
+
+		let buffer = new Float32Array(trianglesCount * 3 * 3);
+
+		for(let i =0; i < trianglesCount; i++)
+		{
+			// First triangle
+			buffer[i * 9 + 0] = 1.0;
+			buffer[i * 9 + 1] = 0.0;
+			buffer[i * 9 + 2] = 0.0;
+
+			// Second triangle
+			buffer[i * 9 + 3] = 0.0;
+			buffer[i * 9 + 4] = 1.0;
+			buffer[i * 9 + 5] = 0.0;
+
+			// Third triangle
+			buffer[i * 9 + 6] = 0.0;
+			buffer[i * 9 + 7] = 0.0;
+			buffer[i * 9 + 8] = 1.0;
+		}
+
+		self.wireFrameBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, self.wireFrameBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, buffer, gl.STATIC_DRAW);
+	}
+
 	this.getSharedRenderer = function()
 	{
 		let newRenderer = new Renderer();
@@ -1259,6 +1312,8 @@ function Renderer()
 		newRenderer.setCanvasElement(canvas.element);
 
 		newRenderer.textureMap = self.textureMap;
+
+		newRenderer.wireFrameBuffer = self.wireFrameBuffer;
 
 		for(let k in programsMap)
 		{
@@ -1353,25 +1408,18 @@ function Renderer()
 		
 
 		// Load shaders
-		self.loadShaders(Shaders.VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.DEFAULT_PROGRAM_ID);
+		self.loadShaders(Renderer.DEFAULT_PROGRAM_ID, Shaders.VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, false);
+
+		self.loadShaders(Renderer.DEFAULT_WIREFRAME_PROGRAM_ID, Shaders.WIREFRAME_VERTEX_SHADER_SOURCE, Shaders.WIREFRAME_FRAGMENT_SHADER_SOURCE, false);
 
 		if(hasInstancing)
 		{
-			self.loadShaders(Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.INSTANCE_PROGRAM_ID);
+			self.loadShaders(Renderer.INSTANCE_PROGRAM_ID, Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, true);
 
-			self.loadShaders(Shaders.INSTANCE_POINT_MESH_VERTEX_SHADER, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.POINTMESH_PROGRAM_ID);
+			self.loadShaders(Renderer.POINTMESH_PROGRAM_ID, Shaders.INSTANCE_POINT_MESH_VERTEX_SHADER, Shaders.FRAGMENT_SHADER_SOURCE, true);
+
+			self.loadShaders(Renderer.INSTANCE_WIREFRAME_PROGRAM_ID, Shaders.WIREFRAME_INSTANCE_VERTEX_SHADER_SOURCE, Shaders.WIREFRAME_FRAGMENT_SHADER_SOURCE, true);
 		}
-
-		// if(hasDrawBuffer)
-		// {
-		// 	self.loadShaders(Shaders.VERTEX_SHADER_SOURCE, Shaders.PICK_FRAGMENT_SHADER_SOURCE, Renderer.PICKING_PROGRAM);
-		// }
-
-		// if(hasDrawBuffer && hasInstancing)
-		// {
-		// 	self.loadShaders(Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.PICK_FRAGMENT_SHADER_SOURCE, Renderer.INSTANCE_PICKING_PROGRAM);
-		// }
-		
 		
 		// Set clear color
 		gl.clearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);

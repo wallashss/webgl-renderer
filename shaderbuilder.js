@@ -17,9 +17,16 @@ function buildShader(source, type, gl)
 
 function createProgram(vertexSource, fragmentSource, gl)
 {  
-    let vertexShader = buildShader(vertexSource, gl.VERTEX_SHADER, gl);
-    let fragmentShader = buildShader(fragmentSource, gl.FRAGMENT_SHADER, gl);
+    let header = "";
+    if(gl.getExtension('OES_standard_derivatives'))
+    {
+        header += "#define HAS_DERIVATIVES \n"
+    }
 
+    let vertexShader = buildShader(header + vertexSource, gl.VERTEX_SHADER, gl);
+    let fragmentShader = buildShader(header + fragmentSource, gl.FRAGMENT_SHADER, gl);
+
+    
     if(vertexShader && fragmentShader)
     {
         let program = gl.createProgram();
