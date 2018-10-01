@@ -54,7 +54,7 @@ function Renderer()
 
 	let instanceExt = null;
 
-	let _nextInstanceId = 128;
+	let _nextInstanceId = 1;
 	let disableClear = false;
 
 	
@@ -329,8 +329,8 @@ function Renderer()
 		
 		let idx = _nextInstanceId; // we must resever alpha component
 		let id = intToVec4(idx);
-		// _nextInstanceId++;
-		_nextInstanceId+=255;
+		_nextInstanceId++;
+		// _nextInstanceId+=255;
 		
 		let b = {mesh: mesh,
 			transform: t,
@@ -379,8 +379,9 @@ function Renderer()
 		else
 		{
 			let idx = _nextInstanceId; // we must resever alpha component
-			// _nextInstanceId++;
-			_nextInstanceId+=255;
+			batchesKeys.push(idx);
+			batches[idx] = b;
+			_nextInstanceId++;
 		}
 
 		return null;
@@ -438,7 +439,7 @@ function Renderer()
 		// }
 		batches[outIdx] = b;	
 		batchesKeys.push(outIdx);
-		_nextInstanceId+=255;
+		_nextInstanceId++;
 		return outIdx;
 		
 	}
@@ -451,7 +452,7 @@ function Renderer()
 		let useBlending = false;
 		if(!hasInstancing || matrices.length === 1)
 		{
-			_nextInstanceId += matrices.length * 255;
+			_nextInstanceId += matrices.length ;
 			for(let i = 0; i < matrices.length; i++)
 			{
 				let idx = outIdx + i; 
