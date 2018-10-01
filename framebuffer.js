@@ -174,7 +174,7 @@ function Framebuffer(gl, width, height)
         return _depthTexture;
     }
 
-    this.draw = function(idx = 0)
+    this.draw = function(idx = 0, clear)
     {
         if(_textures.length <= 0)
         {
@@ -193,7 +193,10 @@ function Framebuffer(gl, width, height)
             return;
         }
 
-        // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        if(clear)
+        {
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        }
         gl.disable(gl.DEPTH_TEST);
         // gl.disable(gl.CULL_FACE);
         gl.useProgram(Framebuffer.defaultProgram);

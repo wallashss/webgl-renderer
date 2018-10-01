@@ -54,7 +54,7 @@ function Renderer()
 
 	let instanceExt = null;
 
-	let _nextInstanceId = 1;
+	let _nextInstanceId = 128;
 	let disableClear = false;
 
 	
@@ -222,7 +222,7 @@ function Renderer()
 			let texSamplerUniform = gl.getUniformLocation(program, "texSampler");
 			// let pickingUniform = gl.getUniformLocation(program, "picking");
 
-			let isInstance = programId === Renderer.INSTACE_PROGRAM || programId === Renderer.POINTMESH_PROGRAM;//  || programId === Renderer.INSTANCE_PICKING_PROGRAM;
+			let isInstance = programId === Renderer.INSTANCE_PROGRAM_ID || programId === Renderer.POINTMESH_PROGRAM_ID;//  || programId === Renderer.INSTANCE_PICKING_PROGRAM;
 
 			let newProgram = {program: program,
 					positionVertex: positionVertex,
@@ -329,7 +329,8 @@ function Renderer()
 		
 		let idx = _nextInstanceId; // we must resever alpha component
 		let id = intToVec4(idx);
-		_nextInstanceId++;
+		// _nextInstanceId++;
+		_nextInstanceId+=255;
 		
 		let b = {mesh: mesh,
 			transform: t,
@@ -337,7 +338,7 @@ function Renderer()
 			id: id,
 			visible: true,
 			textureName: textureName, 
-			programId: Renderer.DEFAULT_PROGRAM,
+			programId: Renderer.DEFAULT_PROGRAM_ID,
 			isInstance: false,
 		    unlit: unlit || false};
 
@@ -378,7 +379,8 @@ function Renderer()
 		else
 		{
 			let idx = _nextInstanceId; // we must resever alpha component
-			_nextInstanceId++;
+			// _nextInstanceId++;
+			_nextInstanceId+=255;
 		}
 
 		return null;
@@ -426,7 +428,7 @@ function Renderer()
 			unlit : unlit || false,
 			isBillboard: true,
 			isPointMesh: true,
-			programId: Renderer.POINTMESH_PROGRAM,
+			programId: Renderer.POINTMESH_PROGRAM_ID,
 			isInstance: true}
 	
 		// for(let i = 0 ; i < instanceCount; i++)
@@ -436,7 +438,7 @@ function Renderer()
 		// }
 		batches[outIdx] = b;	
 		batchesKeys.push(outIdx);
-		_nextInstanceId++;
+		_nextInstanceId+=255;
 		return outIdx;
 		
 	}
@@ -449,7 +451,7 @@ function Renderer()
 		let useBlending = false;
 		if(!hasInstancing || matrices.length === 1)
 		{
-			_nextInstanceId += matrices.length;
+			_nextInstanceId += matrices.length * 255;
 			for(let i = 0; i < matrices.length; i++)
 			{
 				let idx = outIdx + i; 
@@ -464,7 +466,7 @@ function Renderer()
 					visible: true,
 					textureName: textureName,
 					id: id,
-					programId: Renderer.DEFAULT_PROGRAM,
+					programId: Renderer.DEFAULT_PROGRAM_ID,
 					unlit: unlit || false,
 					isBillboard: isBillboard || false,
 					isInstance: false}
@@ -556,7 +558,7 @@ function Renderer()
 				useBlending: useBlending,
 				unlit : unlit || false,
 				isBillboard: isBillboard || false,
-				programId: Renderer.INSTACE_PROGRAM,
+				programId: Renderer.INSTANCE_PROGRAM_ID,
 				isInstance: true}
 		
 			for(let i = 0 ; i < instanceCount; i++)
@@ -1140,6 +1142,15 @@ function Renderer()
 		canvas.height = bounds.height;
 	}
 
+	this.forceUseBlending = function(blending = false)
+	{
+		for(let i = 0 ; i < batchesKeys.length; i++)
+		{
+			let b = batches[batchesKeys[i]];
+			b.useBlending = blending;
+		}
+	}
+
 	this.setViewport = function(x, y, width, height, willDraw = false)
 	{
 		if(gl)
@@ -1318,13 +1329,13 @@ function Renderer()
 		
 
 		// Load shaders
-		self.loadShaders(Shaders.VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.DEFAULT_PROGRAM);
+		self.loadShaders(Shaders.VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.DEFAULT_PROGRAM_ID);
 
 		if(hasInstancing)
 		{
-			self.loadShaders(Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.INSTACE_PROGRAM);
+			self.loadShaders(Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.INSTANCE_PROGRAM_ID);
 
-			self.loadShaders(Shaders.INSTANCE_POINT_MESH_VERTEX_SHADER, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.POINTMESH_PROGRAM);
+			self.loadShaders(Shaders.INSTANCE_POINT_MESH_VERTEX_SHADER, Shaders.FRAGMENT_SHADER_SOURCE, Renderer.POINTMESH_PROGRAM_ID);
 		}
 
 		// if(hasDrawBuffer)
@@ -1350,6 +1361,7 @@ function Renderer()
 		// gl.cullFace(gl.BACK);
 		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 		gl.depthFunc(gl.LEQUAL);
+		gl.disable(gl.BLEND);
 
 		// We always bind a default dummy texture
 		dummyTexture = gl.createTexture();
@@ -1403,8 +1415,10 @@ function Renderer()
 	}
 }
 
-Renderer.DEFAULT_PROGRAM = "_default";
-Renderer.INSTACE_PROGRAM = "_instance";
-Renderer.POINTMESH_PROGRAM = "_pointMesh";
+Renderer.DEFAULT_PROGRAM_ID = "_default";
+Renderer.INSTANCE_PROGRAM_ID = "_instance";
+Renderer.POINTMESH_PROGRAM_ID = "_pointMesh";
+Renderer.DEFAULT_WIREFRAME_PROGRAM_ID = "_defaultWireframe";
+Renderer.INSTANCE_WIREFRAME_PROGRAM_ID = "_instanceWireframe";
 
 module.exports = Renderer;
