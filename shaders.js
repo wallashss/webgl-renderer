@@ -336,7 +336,9 @@ void main(void)
     }
     else
     {
-        finalColor = vec4(0);
+        // finalColor = vec4(0);
+        discard;
+        return;
     }
 
 #else

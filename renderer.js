@@ -838,22 +838,24 @@ function Renderer()
 			return;
 		}
 	
-		// Bind shader
 		
+		// Default matrices
 		let m = mat4.create();
 		let mv = mat4.create();
 		let mvp = mat4.create();
 		let p = _projectionMatrix;
 		let v = _viewMatrix;
+		let normalMatrix = mat4.create();
 		
+		// Variables to hold program state
 		let currentProgram = null;
 		let currentVertexBufferId = null;
 		let currentElementBufferId = null;
 		let currentModelBufferId = null;
 		let currentColorBufferId = null;
 		let currentTextureId = null;
-		let currentPickBufferId = null;
 		let blendEnabled = false;
+		let depthMaskEnabled = true;
 		let unlintSet = false;
 		let billboardSet = false;
 
@@ -865,6 +867,8 @@ function Renderer()
 			{
 				continue;
 			}
+
+			// Bind shader
 			let program = null;
 			if(!b.programId)
 			{
@@ -878,6 +882,7 @@ function Renderer()
 				continue;
 			}
 
+			// Setup initial parameters for program
 			if(currentProgram !== program)
 			{
 				currentProgram = program;
@@ -890,11 +895,9 @@ function Renderer()
 				
 				unlintSet = b.unlit;
 				gl.uniform1f(currentProgram.unlitUniform, unlintSet ? 1.0 : 0.0);
-				// gl.uniform1f(currentProgram.unlitUniform, 0.0);
 
 				billboardSet = b.isBillboard;
 				gl.uniform1f(currentProgram.isBillboardUniform, billboardSet ? 1.0 : 0.0);
-				// gl.uniform1f(currentProgram.unlitUniform, 0.0);
 			
 			}
 			
@@ -910,7 +913,7 @@ function Renderer()
 				gl.uniform1f(currentProgram.isBillboardUniform, billboardSet ? 1.0 : 0.0);
 			}
 			
-			// Matrices
+			// Setup model matrix
 			if(!currentProgram.isInstance || b.isPointMesh)
 			{
 				mat4.copy(m, b.transform);
@@ -919,9 +922,8 @@ function Renderer()
 			{
 				mat4.identity(m);
 			}
-
-		
-			let normalMatrix = mat4.create();
+			
+			mat4.identity(normalMatrix);
 			
 			// Model view projection
 			mat4.scale(m, m, self.scale);
@@ -1022,49 +1024,31 @@ function Renderer()
 
 			if(!currentProgram.isInstance)
 			{
-				if(b.color.a >= 1.0 && blendEnabled)
-				{
-					gl.disable(gl.BLEND);
-					// gl.depthMask(true);
-					blendEnabled = false;
-				}
-				else if(b.color.a < 1.0 && !blendEnabled)
-				{
-					gl.enable(gl.BLEND);
-					// gl.depthMask(false);
-					blendEnabled = true;
-				}
 				gl.uniform4fv(currentProgram.colorUniform, b.color);
 			}
-			else
+			
+
+			// Setup blend for proper drawing transparent objects
+			if((!b.useBlending && !b.isWireframe) && blendEnabled)
 			{
-				if(!b.useBlending && blendEnabled)
-				{
-					gl.disable(gl.BLEND);
-					gl.depthMask(true);
-					if(!self.cullFace)
-					{
-						// gl.enable(gl.CULL_FACE);
-						// gl.cullFace(gl.FRONT_AND_BACK);
-					}
-					blendEnabled = false;
-				}
-				else if(b.useBlending && !blendEnabled)
-				{
-					gl.enable(gl.BLEND);
-					gl.depthMask(false);
-					if(!self.cullFace)
-					{
-						// gl.disable(gl.CULL_FACE);
-						// gl.cullFace(gl.FRONT_AND_BACK);
-					}
-					blendEnabled = true;
-				}
+				gl.disable(gl.BLEND);
+				blendEnabled = false;
+			}
+			else if((b.useBlending || b.isWireframe) && !blendEnabled)
+			{
+				gl.enable(gl.BLEND);
+				blendEnabled = true;
 			}
 
-			if(self.drawPicking && !currentProgram.isInstance)
+			if(!b.useBlending && !depthMaskEnabled)
 			{
-				gl.uniform4fv(program.pickingUniform, b.id);
+				gl.depthMask(true);
+				depthMaskEnabled = true;
+			}
+			else if(b.useBlending && depthMaskEnabled)
+			{
+				gl.depthMask(false);
+				depthMaskEnabled = false;
 			}
 			
 			if(currentProgram.isInstance)
@@ -1151,16 +1135,17 @@ function Renderer()
 		}
 
 
+		// Restore default state
 		if(blendEnabled)
 		{
 			gl.disable(gl.BLEND);
-			gl.depthMask(true);
-			if(!self.cullFace)
-			{
-				// gl.enable(gl.CULL_FACE);
-				// gl.cullFace(gl.FRONT_AND_BACK);
-			}
 		}
+
+		if(!depthMaskEnabled)
+		{
+			gl.depthMask(true);
+		}
+
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.useProgram(null);
 		enableAttribs([]);
