@@ -55,7 +55,9 @@ function Renderer()
 	let instanceExt = null;
 
 	let _nextInstanceId = 1;
-	let disableClear = false;
+
+	this.disableClearDepth = false;
+	this.disableClearColor = false;
 
 	
 	function enableAttribs (attribs)
@@ -789,9 +791,19 @@ function Renderer()
 	this.draw = function()
 	{
 		// Clear screen
-		if(!disableClear)
+
+		
+		if(!self.disableClearColor && !self.disableClearDepth)
 		{
 			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		}
+		else if(self.disableClearColor && !self.disableClearDepth)
+		{
+			gl.clear(gl.DEPTH_BUFFER_BIT);
+		}
+		else if(!self.disableClearColor && self.disableClearDepth)
+		{
+			gl.clear(gl.COLOR_BUFFER_BIT );
 		}
 		
 		if(!self.hasBatches())
@@ -1192,7 +1204,18 @@ function Renderer()
 
 	this.setDisableClear = function(disable)
 	{
-		disableClear = disable;
+		self.disableClearColor = disable;
+		self.disableClearDepth = disable;
+	}
+
+	this.setDisableClearDepth = function(disable)
+	{
+		self.disableClearDepth = disable;
+	}
+
+	this.setDisableClearColor = function(disable)
+	{
+		self.disableClearColor = disable;
 	}
 
 	this.enableCullface = function(cullFace)
