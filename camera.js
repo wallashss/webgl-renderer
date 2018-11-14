@@ -198,6 +198,40 @@ Camera.prototype.reset = function()
 Camera.prototype.installCamera = function(element, drawcallback)
 {
 	let self = this;
+
+	let startTouch = (e) =>
+	{
+		mouseState.mousePress = true;
+		mouseState.x = e.clientX;
+		mouseState.y = e.clientY;
+	}
+
+	let moveTouch = (e) =>
+	{
+		// mouseState.mousePress = true;
+		// mouseState.x = e.clientX;
+		// mouseState.y = e.clientY;
+
+		if(self.mouseState.mousePress)
+		{
+			// self.rotate(-mouseState.x + e.clientX, -mouseState.y + e.clientY);
+			// mouseState.x = e.clientX;
+			// mouseState.y = e.clientY;
+			self.rotate(-mouseState.x + e.clientX, -mouseState.y + e.clientY);
+			mouseState.x = e.clientX;
+			mouseState.y = e.clientY;
+		}
+
+	}
+
+	let endTouch = (e) =>
+	{
+		// mouseState.mousePress = true;
+		// mouseState.x = e.clientX;
+		// mouseState.y = e.clientY;
+		mouseState.mousePress = false;
+		// endTouch();
+	}
 	
 	let mouseState = this.mouseState;
 	if(element)
@@ -206,26 +240,71 @@ Camera.prototype.installCamera = function(element, drawcallback)
 		{
 			if(e.target === element)
 			{
-				mouseState.mousePress = true;
-				mouseState.x = e.clientX;
-				mouseState.y = e.clientY;
+				// mouseState.mousePress = true;
+				// mouseState.x = e.clientX;
+				// mouseState.y = e.clientY;
+				startTouch(e);
 			}
 		});
 		
 		window.addEventListener("mouseup", (e) =>
 		{
-			mouseState.mousePress = false;
+			// mouseState.mousePress = false;
+			endTouch(e);
 		});
+
 		
 		window.addEventListener("mousemove", (e) =>
 		{
-			if(self.mouseState.mousePress)
-			{
-				self.rotate(-mouseState.x + e.clientX, -mouseState.y + e.clientY);
-				mouseState.x = e.clientX;
-				mouseState.y = e.clientY;
-			}
+			moveTouch(e);
 		});
+
+		element.addEventListener("touchstart", (e) =>
+		{
+			console.log("start", e);
+			// mouseState.mousePress = true;
+			// mouseState.x = e.clientX;
+			// mouseState.y = e.clientY;
+
+			if(e.touches)
+			{
+				if(e.touches.length === 1)
+				{
+					// for(let i =0; i < e.toches.length; i++)
+					// {
+						
+					// }
+					startTouch(e.touches[0]);
+				}
+
+				// e.preve
+			}
+		}, false);
+
+		element.addEventListener("touchmove", (e) =>
+		{
+			if(e.touches)
+			{
+				if(e.touches.length > 0)
+				{
+					moveTouch(e.touches[0]);
+				}
+			}
+			console.log("move", e);
+
+		}, false);
+
+		element.addEventListener("touchend", (e) =>
+		{
+			// console.log("end", e);
+			endTouch();
+		}, false);
+
+		element.addEventListener("touchcancel", (e) =>
+		{
+			console.log("cancel", e);
+		}, false);
+		
 		
 		element.addEventListener("wheel", function(e)
 		{
