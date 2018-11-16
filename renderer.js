@@ -800,7 +800,6 @@ function Renderer()
 		
 		self.textureMap[textureName] = textureId;
 		
-		// self.draw();
 	}
 
 	this.clearBatches = function()
@@ -1181,22 +1180,11 @@ function Renderer()
 		}
 	}
 
-	this.onResize = function(willDraw)
+	this.onResize = function()
 	{
 		if(canvas.element)
 		{
 			self.updateViewBounds();
-
-			// mat4.perspective(_projectionMatrix, 45, canvas.width / canvas.height, 0.1, 100000.0);
-
-			if(mainProgram)
-			{
-				// gl.viewport(0, 0, canvas.width, canvas.height);
-				if(willDraw)
-				{
-					// self.draw();
-				}
-			}
 		}
 	}
 
