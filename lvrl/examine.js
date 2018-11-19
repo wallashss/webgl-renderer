@@ -23,7 +23,9 @@ function Examine()
 	
 	this.getViewMatrix = function()
 	{
-		return _viewMatrix;
+		let outMatrix = mat4.create();
+		mat4.copy(outMatrix, _viewMatrix);
+		return outMatrix;
 	}
 	
 	this.update = function(dt, state)

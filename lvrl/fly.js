@@ -19,6 +19,7 @@ function Fly()
 	{
 		_forwardDirection = vec3.clone(forward);
 	}
+
 	this.setViewMatrix = function(viewMatrix)
 	{
 		mat4.copy(_viewMatrix, viewMatrix);
@@ -26,7 +27,9 @@ function Fly()
 	
 	this.getViewMatrix = function()
 	{
-		return _viewMatrix;
+		let outMatrix = mat4.create();
+		mat4.copy(outMatrix, _viewMatrix);
+		return outMatrix;
 	}
 	
 	this.update = function(dt, state)

@@ -329,6 +329,7 @@ Camera.prototype.installCamera = function(element, drawcallback)
 					delta = -10;
 				}
 			}
+			
 			if(self.manipulatorType === EXAMINE_MANIPULATOR_TYPE)
 			{
 				self.zoom(delta * 0.001);
