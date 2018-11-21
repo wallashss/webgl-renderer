@@ -106,6 +106,7 @@ void main (void)
         gl_Position =  projection * (modelView * model * vec4(0, 0, 0, 1.0) + model * vec4(position, 0));
         currentColor = colorInstance;
         vNormal = normalize(mat3(modelView) * normal);
+        vTexcoord = texcoord;
         return;
     }
     gl_Position =  modelViewProjection * model * vec4(position, 1.0);
@@ -268,7 +269,7 @@ void main(void)
         else
         {
             vec4 texel = texture2D(texSampler, vTexcoord);
-            finalColor = vec4(illumination * currentColor.rgb * texel.rgb, currentColor.a);            
+            finalColor = vec4(illumination * currentColor.rgb * texel.rgb, texel.a * currentColor.a);            
         }
 
         gl_FragColor = finalColor;

@@ -62,6 +62,7 @@ Camera.FLY_MANIPULATOR_TYPE = 1;
 const EXAMINE_MANIPULATOR_TYPE = Camera.EXAMINE_MANIPULATOR_TYPE;
 const FLY_MANIPULATOR_TYPE = Camera.FLY_MANIPULATOR_TYPE;	
 
+
 Camera.prototype.rotate = function(yawIntensity, pitchIntensity)
 {
 	this.state.yawIntensity = yawIntensity;
@@ -83,6 +84,7 @@ Camera.prototype.getViewMatrix = function()
 {
 	return this.manipulator.getViewMatrix();
 }
+
 
 Camera.prototype.setCamera = function(eye, center, up)
 {
@@ -261,23 +263,13 @@ Camera.prototype.installCamera = function(element, drawcallback)
 
 		element.addEventListener("touchstart", (e) =>
 		{
-			console.log("start", e);
-			// mouseState.mousePress = true;
-			// mouseState.x = e.clientX;
-			// mouseState.y = e.clientY;
 
 			if(e.touches)
 			{
 				if(e.touches.length === 1)
 				{
-					// for(let i =0; i < e.toches.length; i++)
-					// {
-						
-					// }
 					startTouch(e.touches[0]);
 				}
-
-				// e.preve
 			}
 		}, false);
 
@@ -290,19 +282,17 @@ Camera.prototype.installCamera = function(element, drawcallback)
 					moveTouch(e.touches[0]);
 				}
 			}
-			console.log("move", e);
 
 		}, false);
 
 		element.addEventListener("touchend", (e) =>
 		{
-			// console.log("end", e);
 			endTouch();
 		}, false);
 
 		element.addEventListener("touchcancel", (e) =>
 		{
-			console.log("cancel", e);
+			endTouch();
 		}, false);
 		
 		

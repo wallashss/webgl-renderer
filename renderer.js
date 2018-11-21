@@ -27,6 +27,7 @@ function Renderer()
 	
 	let dummyTexture = null;
 	let batchesKeys = [];
+	this.batchesKeys = batchesKeys;
 	let batches = {};
 	let lines = [];
 	this.points = [];
@@ -41,6 +42,9 @@ function Renderer()
 
 	let _viewMatrix = mat4.create();
 	let _projectionMatrix = mat4.create();
+
+	this.viewMatrix = _viewMatrix;
+	this.projectionMatrix = _projectionMatrix;
 	
 	this.drawPicking = false;
 	this.translation = vec3.create();
@@ -462,6 +466,7 @@ function Renderer()
 		let out = [];
 
 		let useBlending = false;
+		let useDepthMask = false;
 		if(!hasInstancing || matrices.length === 1)
 		{
 			_nextInstanceId += matrices.length ;
@@ -529,7 +534,19 @@ function Renderer()
 			let colorBufferId = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, colorBufferId);
 
-			if(colors.constructor === Uint8Array)
+
+
+			if(textureName)
+			{
+				useBlending = true;
+			}
+
+			if(isBillboard)
+			{
+				useDepthMask = true;
+			}
+
+		    if(colors.constructor === Uint8Array)
 			{
 				let colorsCount = colors.length / 4;
 				for(let i = 0; i < colorsCount; i++)
@@ -537,6 +554,7 @@ function Renderer()
 					if(colors[i*4+3] < 255)
 					{
 						useBlending = true;
+						useDepthMask = true;
 						break;
 					}
 				}
@@ -545,7 +563,7 @@ function Renderer()
 			else
 			{
 				let colorArray = new Uint8Array(colors.length * 4);
-				for(let i = 0; i < colors.length; i++)
+				for(let i = 0; i < colors.length ; i++)
 				{
 					let c = vec4fToVec4b(colors[i]);
 					for(let j = 0; j < 4; j++)
@@ -568,9 +586,9 @@ function Renderer()
 				textureName: textureName,
 				visible: true,
 				firstIdx: outIdx,
-				// pickBufferId: pickBufferId,
 				isWireframe: false,
 				useBlending: useBlending,
+				useDepthMask: useDepthMask,
 				unlit : unlit || false,
 				isBillboard: isBillboard || false,
 				programId: Renderer.INSTANCE_PROGRAM_ID,
@@ -1039,12 +1057,12 @@ function Renderer()
 				blendEnabled = true;
 			}
 
-			if(!b.useBlending && !depthMaskEnabled)
+			if(!b.useDepthMask && !depthMaskEnabled)
 			{
 				gl.depthMask(true);
 				depthMaskEnabled = true;
 			}
-			else if(b.useBlending && depthMaskEnabled)
+			else if(b.useDepthMask && depthMaskEnabled)
 			{
 				gl.depthMask(false);
 				depthMaskEnabled = false;
@@ -1288,6 +1306,10 @@ function Renderer()
 
 		newRenderer.wireFrameBuffer = self.wireFrameBuffer;
 
+		newRenderer.viewMatrix = _viewMatrix;
+
+		newRenderer.projectionMatrix = _projectionMatrix;
+
 		for(let k in programsMap)
 		{
 			newRenderer.addProgram(programsMap[k], k);
@@ -1295,9 +1317,16 @@ function Renderer()
 		// newRenderer.addProgram(pickProgram, Renderer.PICKING_PROGRAM);
 		// newRenderer.addProgram(instancePickProgram, Renderer.INSTANCE_PICKING_PROGRAM);
 
-		newRenderer.setProjectionMatrix(_projectionMatrix);
-		newRenderer.setViewMatrix(_viewMatrix);
+		// newRenderer.setProjectionMatrix(_projectionMatrix);
+		// newRenderer.setViewMatrix(_viewMatrix);
+		newRenderer.finishSharing();
 		return newRenderer;
+	}
+
+	this.finishSharing = function()
+	{
+		_viewMatrix = self.viewMatrix;
+		_projectionMatrix = self.projectionMatrix;
 	}
 
 	this.hasBatches = function()
@@ -1440,12 +1469,14 @@ function Renderer()
 	
 	this.setViewMatrix = function(viewMatrix)
 	{
-		_viewMatrix = mat4.clone(viewMatrix);
+		// _viewMatrix = mat4.clone(viewMatrix);
+		mat4.copy(_viewMatrix, viewMatrix);
 	}
 
 	this.setProjectionMatrix = function(projectionMatrix)
 	{
-		_projectionMatrix = mat4.clone(projectionMatrix);
+		// _projectionMatrix = mat4.clone(projectionMatrix);
+		mat4.copy(_projectionMatrix, projectionMatrix);
 	}
 
 	this.setPerspective = function(fov, ratio, near, far)
@@ -1457,6 +1488,11 @@ function Renderer()
 	this.setScale = function(newScale)
 	{
 		self.scale = vec3.clone(newScale);
+	}
+
+	this.sortBatches = function(callback)
+	{
+		batchesKeys.sort(callback);
 	}
 }
 
