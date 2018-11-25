@@ -1384,26 +1384,29 @@ function Renderer()
 		self.updateViewBounds();
 	}
 
-	this.load = function(canvasElement)
+	this.load = function(canvasElement, options)
 	{
 		self.setCanvasElement(canvasElement);
 
 		this.version = 1;
 
-		
+        
+        if(options)
+        {
+            console.log(options);
+        }
 		if(this.version === 2)
 		{
-			gl = canvasElement.getContext("webgl2");
+			gl = canvasElement.getContext("webgl2", options);
 			
 		}
 		else
 		{
-			gl = canvasElement.getContext("webgl");
+			gl = canvasElement.getContext("webgl", options);
 		}
 		
 		window.gl = gl;
 		self.loadExtensions();
-		
 		
 		
 		gl.viewport(0, 0, canvas.width, canvas.height);
