@@ -60,7 +60,7 @@ function Renderer()
 
 	let instanceExt = null;
 
-	let _nextInstanceId = 1;
+	let idManager = {_nextInstanceId : 1};
 
 	this.disableClearDepth = false;
 	this.disableClearColor = false;
@@ -343,10 +343,10 @@ function Renderer()
 			c = vec4.clone(color);
 		}
 		
-		let idx = _nextInstanceId; // we must resever alpha component
+		let idx = idManager._nextInstanceId; // we must resever alpha component
 		let id = intToVec4(idx);
-		_nextInstanceId++;
-		// _nextInstanceId+=255;
+		idManager._nextInstanceId++;
+		// idManager._nextInstanceId+=255;
 		
 		let b = {mesh: mesh,
 			transform: t,
@@ -396,10 +396,10 @@ function Renderer()
 		}
 		else
 		{
-			let idx = _nextInstanceId; // we must resever alpha component
+			let idx = idManager._nextInstanceId; // we must resever alpha component
 			batchesKeys.push(idx);
 			batches[idx] = b;
-			_nextInstanceId++;
+			idManager._nextInstanceId++;
 		}
 
 		return null;
@@ -407,7 +407,7 @@ function Renderer()
 
 	this.addPointMesh = function(meshId, points, colors, transform, textureName = null, unlit = false, isBillboard = false)
 	{
-		const outIdx = _nextInstanceId;
+		const outIdx = idManager._nextInstanceId;
 		let pointsBufferId = gl.createBuffer();
 		
 		let pointsCount = points.length / 3;
@@ -457,21 +457,21 @@ function Renderer()
 		// }
 		batches[outIdx] = b;	
 		batchesKeys.push(outIdx);
-		_nextInstanceId++;
+		idManager._nextInstanceId++;
 		return outIdx;
 		
 	}
 
 	function _addInstance(mesh, colors, matrices, textureName, unlit = false, isBillboard = false)
 	{
-		const outIdx = _nextInstanceId;
+		const outIdx = idManager._nextInstanceId;
 		let out = [];
 
 		let useBlending = false;
 		let useDepthMask = false;
 		if(!hasInstancing || matrices.length === 1)
 		{
-			_nextInstanceId += matrices.length ;
+			idManager._nextInstanceId += matrices.length ;
 			for(let i = 0; i < matrices.length; i++)
 			{
 				let idx = outIdx + i; 
@@ -544,7 +544,7 @@ function Renderer()
 				gl.bufferData(gl.ARRAY_BUFFER, matricesArray, gl.STATIC_DRAW);
 			}
 
-			_nextInstanceId += instanceCount;
+			idManager._nextInstanceId += instanceCount;
 
 			for(let i = 0 ; i < instanceCount; i++)
 			{
@@ -1410,7 +1410,9 @@ function Renderer()
 
 		newRenderer.viewMatrix = _viewMatrix;
 
-		newRenderer.projectionMatrix = _projectionMatrix;
+        newRenderer.projectionMatrix = _projectionMatrix;
+        
+        newRenderer.idManager = idManager;
 
 		for(let k in programsMap)
 		{
@@ -1428,7 +1430,8 @@ function Renderer()
 	this.finishSharing = function()
 	{
 		_viewMatrix = self.viewMatrix;
-		_projectionMatrix = self.projectionMatrix;
+        _projectionMatrix = self.projectionMatrix;
+        idManager = self.idManager;
 	}
 
 	this.hasBatches = function()
@@ -1569,7 +1572,7 @@ function Renderer()
 
 	this.setNextId = function(id)
 	{
-		_nextInstanceId = id;
+		// idManager._nextInstanceId = id;
 	}
 	
 	this.setViewMatrix = function(viewMatrix)
