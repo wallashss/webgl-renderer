@@ -383,7 +383,9 @@ function Renderer()
 			return batches[id];
 		}
 		return null;
-	}
+    }
+    
+
 
 	this.addBatch = function(b, idx = null)
 	{
@@ -496,18 +498,38 @@ function Renderer()
 		}
 		else
 		{
-			let modelBufferId = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, modelBufferId);
+            let modelBufferId = null; 
+            
+            
+			
 
 			// Upload matrices
-			let instanceCount = 0;
-			if(matrices.constructor === Float32Array)
+            let instanceCount = 0;
+            if(matrices.constructor === WebGLBuffer)
+            {
+                modelBufferId = matrices;
+                if(colors.constructor === Uint8Array)
+                {
+                    instanceCount = colors.length / 4;
+                }
+                else
+                {
+                    instanceCount = colors.length;
+                }
+            }
+			else if(matrices.constructor === Float32Array)
 			{
+                modelBufferId = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, modelBufferId);
+
 				instanceCount = matrices.length / 16;
 				gl.bufferData(gl.ARRAY_BUFFER, matrices, gl.STATIC_DRAW);
 			}
 			else
 			{
+                modelBufferId = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, modelBufferId);
+
 				instanceCount = matrices.length;
 				
 				let matricesArray = new Float32Array(matrices.length * 16);
@@ -618,6 +640,11 @@ function Renderer()
 			throw err;
 		}
 
+        if(matrices.constructor === WebGLBuffer)
+        {
+            // go on
+            return _addInstance(mesh, colors, matrices, textureName, unlit, isBillboard);
+        }
 		if((matrices.constructor != Float32Array || colors.constructor != Uint8Array) && 
 			colors.length !== matrices.length)
 		{
@@ -631,8 +658,48 @@ function Renderer()
 			return;
 		}
 		return _addInstance(mesh, colors, matrices, textureName, unlit, isBillboard);
+    }
 
-	}
+    this.getSharedMatrices = function(idx)
+    {
+        if(batches.hasOwnProperty(idx))
+		{
+			let b = batches[idx];
+
+            return b.modelBufferId;
+        }
+        return null;
+
+    }
+    // this.getSharedBatch = function(idx)
+    // {
+    //     if(batches.hasOwnProperty(idx))
+	// 	{
+	// 		let b = batches[idx];
+
+	// 		return b;
+    //     }
+    //     return null;
+
+    // }
+    
+    // this.shareInstances = function(b)
+    // {
+    //     let newB = {};
+
+    //     for(let k in b)
+    //     {
+    //         newB[k] = b
+    //     }
+    //     for(let i = 0 ; i < b.instanceCount; i++)
+    //     {
+    //         let idx = outIdx + i;
+    //         batches[idx] = ;
+    //     }
+    //     batchesKeys.push(outIdx);
+
+    // }
+
 	this.addObjectInstances = function(vertices, elements, colors, matrices, textureName, unlit, isBillboard)
 	{
 		if(!matrices)
@@ -664,20 +731,21 @@ function Renderer()
 		_addInstance(mesh, colors, matrices, textureName, unlit, isBillboard);
 	}
 
-	this.updateColor = function(idx, color)
+	this.updateColor = function(idx, color, forceBlending =  false)
 	{
 		if(batches.hasOwnProperty(idx))
 		{
 			let b = batches[idx];
 
-			if(color[3] >= 1)
+			if(color[3] >= 1 && !forceBlending)
 			{
 				b.useBlending = false;
 			}
 			else
 			{
 				b.useBlending = true;
-			}
+            }
+            
 			if(!b.isInstance)
 			{
 				b.color = color;
