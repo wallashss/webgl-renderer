@@ -706,9 +706,9 @@ function Renderer()
 			else
 			{
 				let offset =  idx - b.firstIdx;
-				let c = vec4fToVec4b(color); 
-				gl.bindBuffer(gl.ARRAY_BUFFER, b.colorBufferId);
-				gl.bufferSubData(gl.ARRAY_BUFFER, offset * 4, c);
+				// let c = vec4fToVec4b(color); 
+				gl.bindBuffer(gl.ARRAY_BUFFER, b.modelBufferId);
+				gl.bufferSubData(gl.ARRAY_BUFFER, offset * 16 * 4, transform);
 				gl.bindBuffer(gl.ARRAY_BUFFER, null);
 			}
 		}
@@ -817,7 +817,41 @@ function Renderer()
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		
 		self.textureMap[textureName] = textureId;
+    }
+    
+    this.setTexture = function(textureName, texture, isNearest)
+	{
+        if(!self.textureMap.hasOwnProperty(textureName))
+        {
+            self.addTexture(textureName, texture, isNearest);
+            return;
+        }
+
+		let textureId = self.textureMap[textureName];
+
+		gl.bindTexture(gl.TEXTURE_2D, textureId);
+		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture);
+
+		isNearest = (isNearest !== null && isNearest !== undefined) ? isNearest : false;
+
+		if(isNearest)
+		{
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		}
+		else
+		{
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		}
+
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		
+		self.textureMap[textureName] = textureId;
 	}
 
 	this.clearBatches = function()
