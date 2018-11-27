@@ -363,6 +363,7 @@ function Renderer()
 		return idx;
 	}
 
+    //  TODO: Clear memeory resources
 	this.removeObject = function(id)
 	{
 		let idx  = batchesKeys.indexOf(id);
@@ -1308,10 +1309,11 @@ function Renderer()
 		}
 	}
 
-	this.enablePolygonOffset = function()
+	this.enablePolygonOffset = function(factor = -2, units = -3)
 	{
+
 		gl.enable(gl.POLYGON_OFFSET_FILL);
-		gl.polygonOffset(0, 1);
+		gl.polygonOffset(factor, units);
 	}
 
 	this.disablePolygonOffset = function()
