@@ -357,6 +357,8 @@ function Framebuffer(gl, width, height)
             return;
         }
 
+        
+        let WebGL2RenderingContext = window.WebGL2RenderingContext || null;
         if(gl.constructor === WebGL2RenderingContext)
         {
             self.version = 2;

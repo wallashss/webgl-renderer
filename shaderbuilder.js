@@ -18,9 +18,15 @@ function buildShader(source, type, gl)
 function createProgram(vertexSource, fragmentSource, gl)
 {  
     let header = "";
+    let WebGL2RenderingContext = window.WebGL2RenderingContext;
+    if(gl.constructor === WebGL2RenderingContext)
+    {        
+        // header += "#version 300 es \n";
+        header += "#define HAS_WEBGL_2 \n";
+    }
     if(gl.getExtension('OES_standard_derivatives'))
     {
-        header += "#define HAS_DERIVATIVES \n"
+        header += "#define HAS_DERIVATIVES \n";
     }
 
     let vertexShader = buildShader(header + vertexSource, gl.VERTEX_SHADER, gl);

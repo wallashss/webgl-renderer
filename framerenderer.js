@@ -5,9 +5,18 @@ const ShaderBuilder = require("./shaderbuilder");
 const FrameBuffer = require("./framebuffer");
 
 
-function FrameRenderer(gl, fragmentShader)
+function FrameRenderer(gl, fragmentShader, version)
 {
-    this.program = ShaderBuilder.createProgram(Shaders.FRAMEBUFFER_VERTEX_SHADER_SOURCE, fragmentShader, gl);
+    this.version = version;
+
+    if(version === 2)
+    {
+        this.program = ShaderBuilder.createProgram(Shaders.FRAMEBUFFER_VERTEX_SHADER_SOURCE_2, fragmentShader, gl);
+    }
+    else
+    {
+        this.program = ShaderBuilder.createProgram(Shaders.FRAMEBUFFER_VERTEX_SHADER_SOURCE, fragmentShader, gl);
+    }
 
     gl.useProgram(this.program);
     this.defaultAttrib = gl.getAttribLocation(this.program, "position");

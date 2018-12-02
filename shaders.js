@@ -432,6 +432,21 @@ void main (void)
 }
 `
 
+exports.FRAMEBUFFER_VERTEX_SHADER_SOURCE_2 = 
+`
+#version 300 es
+attribute vec2 position;
+uniform vec2 size;
+out vec2 vPosition;
+out vec2 pos;
+
+void main (void)
+{
+    gl_Position = vec4(position, 0, 1);
+    pos = (position + vec2(1)) * 0.5;
+}
+`
+
 exports.FRAMEBUFFER_FRAGMENT_SHADER_SOURCE = 
 `
 precision mediump float;

@@ -1503,11 +1503,18 @@ function Renderer()
 		if(this.version === 2)
 		{
 			gl = canvasElement.getContext("webgl2", options);
-			
 		}
-		else
+        
+        if(!gl)
 		{
-			gl = canvasElement.getContext("webgl", options);
+            gl = canvasElement.getContext("webgl", options);
+
+            if(this.version !== 1)
+            {
+                console.warn(`Failed to load webgl version ${this.version}. Loaded v1 instead.`)
+
+                this.version = 1;
+            }
 		}
 		
 		window.gl = gl;
