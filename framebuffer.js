@@ -35,6 +35,8 @@ function Framebuffer(gl, width, height)
 
     let _colorAttachs = [];
 
+    this.version = 1;
+
     Framebuffer.defaultQuad = null;
     Framebuffer.defaultShader = null;
     Framebuffer.defaultAttrib = null;
@@ -75,6 +77,35 @@ function Framebuffer(gl, width, height)
         }
     }
 
+    this.checkStatus = function()
+    {
+        let status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+
+        switch(status)
+        {
+            case gl.FRAMEBUFFER_COMPLETE:
+                console.trace("ok");
+                break;
+            case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+                console.trace("FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
+                break;
+            case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+                console.trace("FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
+                break;
+            case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+                console.trace("FRAMEBUFFER_INCOMPLETE_DIMENSIONS");
+                break;
+            case gl.FRAMEBUFFER_UNSUPPORTED:
+                console.trace("FRAMEBUFFER_UNSUPPORTED");
+                break;
+            default:
+            console.trace("Unknown status");
+                break;
+            
+        }
+        
+    }
+
     this.addTexture = function(attach = 0, internalFormat = gl.RGBA, format =  gl.RGBA, type= gl.UNSIGNED_BYTE)
     {
         let textureId = gl.createTexture();
@@ -89,6 +120,8 @@ function Framebuffer(gl, width, height)
             _drawBufferExt.drawBuffersWEBGL(_colorAttachs);
         }
         
+    
+        // self.checkStatus();
         return _textures.length - 1;
     }
 
@@ -96,6 +129,7 @@ function Framebuffer(gl, width, height)
     {
         _depthTexture = textureId;
         buildDepthTexture(false);
+        // self.checkStatus();
     }
 
     this.addDepthTexture = function()
@@ -115,10 +149,25 @@ function Framebuffer(gl, width, height)
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, _width, _height, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
+                
+                // gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, _width, _height, 0, gl.DEPTH_COMPONENT, _depthExt.UNSIGNED_INT_24_8_WEBGL, null);
+                // gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_STENCIL, _width, _height, 0, gl.DEPTH_STENCIL, _depthExt.UNSIGNED_INT_24_8_WEBGL, null);
+
+                if(self.version === 1)
+                {
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, _width, _height, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);    
+                }
+                else
+                {
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24, _width, _height, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
+                }
             }
             gl.framebufferTexture2D(gl.FRAMEBUFFER,  gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, _depthTexture, 0);
+            // gl.framebufferTexture2D(gl.FRAMEBUFFER,  gl.DEPTH_STENCIL_ATTACHMENT, gl.TEXTURE_2D, _depthTexture, 0);
+            
             gl.bindTexture(gl.TEXTURE_2D, null);
+
+            // self.checkStatus();
         }
     }
 
@@ -306,6 +355,11 @@ function Framebuffer(gl, width, height)
         {
             console.log("Invalid context");
             return;
+        }
+
+        if(gl.constructor === WebGL2RenderingContext)
+        {
+            self.version = 2;
         }
 
         if(!Framebuffer.defaultProgram)

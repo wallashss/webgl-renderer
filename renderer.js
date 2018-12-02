@@ -1398,6 +1398,7 @@ function Renderer()
 	{
 		let newRenderer = new Renderer();
 
+        newRenderer.version = self.version;
 		newRenderer.loadExtensions();
 
 		newRenderer.setContext(gl);
@@ -1494,9 +1495,6 @@ function Renderer()
 	this.load = function(canvasElement, options)
 	{
 		self.setCanvasElement(canvasElement);
-
-		this.version = 1;
-
         
         if(options)
         {

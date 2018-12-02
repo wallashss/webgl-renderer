@@ -344,7 +344,7 @@ void main(void)
 
 #else
 
-    if(any(lessThan(vBC, vec3(0.02)))){
+    if(any(lessThan(vBarycentric, vec3(0.02)))){
         gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
     }
     // else{
