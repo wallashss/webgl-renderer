@@ -214,7 +214,7 @@ Camera.prototype.installCamera = function(element, drawcallback)
 		// mouseState.x = e.clientX;
 		// mouseState.y = e.clientY;
 
-		if(self.mouseState.mousePress)
+		if (self.mouseState.mousePress)
 		{
 			// self.rotate(-mouseState.x + e.clientX, -mouseState.y + e.clientY);
 			// mouseState.x = e.clientX;
@@ -318,7 +318,8 @@ Camera.prototype.installCamera = function(element, drawcallback)
 				{
 					delta = -10;
 				}
-			}
+            }
+        
 			
 			if(self.manipulatorType === EXAMINE_MANIPULATOR_TYPE)
 			{
