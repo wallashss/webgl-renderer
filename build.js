@@ -4,3 +4,4 @@ window.Framebuffer = require("./framebuffer");
 window.FrameRenderer = require("./framerenderer");
 window.Shaders = require("./shaders");
 window.ShaderBuilder = require("./shaderbuilder");
+window.ContextGL = require("./contextgl");

@@ -5,6 +5,7 @@ const ShaderBuilder = require("./shaderbuilder");
 
 // Global gl context... It is nice to debug.
 let gl = null;
+let ext = null;
 
 const glMatrix = require("gl-matrix");
 const vec3 = glMatrix.vec3;
@@ -13,6 +14,7 @@ const mat4 = glMatrix.mat4;
 
 function Renderer()
 {	
+	this.contextGL = null;
 	this.mainProgram = null;
 	this.programsMap = {};
 
@@ -25,8 +27,7 @@ function Renderer()
 	this.points = [];
 	this.textureMap = {};
 
-	this.hasInstancing = false;
-	let hasDrawBuffer = false;
+	// let hasDrawBuffer = false;
 	this.backgroundColor = {r: 0.5, g: 0.5, b: 0.5, a: 1.0};
 	this.canvas = {width: 0, 
 				  height: 0, 
@@ -47,7 +48,7 @@ function Renderer()
 	this.enabledVertexAttribMap = [];
 	this.attribDivisors = {};
 
-	this.instanceExt = null;
+	// this.instanceExt = null;
 
 	this.idManager = {_nextInstanceId : 1};
 
@@ -113,11 +114,6 @@ Renderer.prototype.loadShaders = function(id, vertexSource, fragmentSource, isIn
 			attribs.push(barycentric);
 		}
 
-		// if(pickingInstance >= 0)
-		// {
-		// 	attribs.push(pickingInstance);
-		// }
-
 		let modelAttribs = []
 
 		if(model >= 0)
@@ -143,9 +139,6 @@ Renderer.prototype.loadShaders = function(id, vertexSource, fragmentSource, isIn
 		let unlitUniform = gl.getUniformLocation(program, "unlit");
 		let isBillboardUniform = gl.getUniformLocation(program, "isBillboard");
 		let texSamplerUniform = gl.getUniformLocation(program, "texSampler");
-		// let pickingUniform = gl.getUniformLocation(program, "picking");
-
-		// let isInstance = programId === Renderer.INSTANCE_PROGRAM_ID || programId === Renderer.POINTMESH_PROGRAM_ID;//  || programId === Renderer.INSTANCE_PICKING_PROGRAM;
 
 		let newProgram = {program: program,
 				positionVertex: positionVertex,
@@ -155,7 +148,6 @@ Renderer.prototype.loadShaders = function(id, vertexSource, fragmentSource, isIn
 				colorInstance: colorInstance,
 				translation: translation,
 				barycentric: barycentric,
-				// pickingInstance: pickingInstance,
 				projectionUniform: projection,
 				modelViewProjectionUniform: modelViewProjection,
 				modelViewUniform: modelViewUniform,
@@ -165,7 +157,6 @@ Renderer.prototype.loadShaders = function(id, vertexSource, fragmentSource, isIn
 				useTextureUniform: useTextureUniform,
 				unlitUniform: unlitUniform,
 				isBillboardUniform: isBillboardUniform,
-				// pickingUniform: pickingUniform,
 				texSamplerUniform: texSamplerUniform,
 				id: programId,
 				attribs: attribs,
@@ -1040,7 +1031,7 @@ Renderer.prototype.draw = function()
 		
 		if(currentProgram.isInstance)
 		{
-			this.instanceExt.drawElementsInstancedANGLE(gl.TRIANGLES, b.mesh.count, gl.UNSIGNED_SHORT, 0, b.instanceCount);
+			ext.drawElementsInstanced(gl.TRIANGLES, b.mesh.count, gl.UNSIGNED_SHORT, 0, b.instanceCount);
 			// this.instanceExt.drawElementsInstancedANGLE(gl.LINES, b.mesh.count, gl.UNSIGNED_SHORT, 0, b.instanceCount);
 		}
 		else
@@ -1143,12 +1134,12 @@ Renderer.prototype.draw = function()
 
 Renderer.prototype.updateViewBounds = function()
 {
-	let bounds = this.canvas.element.getBoundingClientRect();
+	// let bounds = this.canvas.element.getBoundingClientRect();
 	
-	this.canvas.element.width = bounds.width;
-	this.canvas.element.height = bounds.height;
-	this.canvas.width = bounds.width;
-	this.canvas.height = bounds.height;
+	// this.canvas.element.width = bounds.width;
+	// this.canvas.element.height = bounds.height;
+	// this.canvas.width = bounds.width;
+	// this.canvas.height = bounds.height;
 }
 
 Renderer.prototype.forceUseBlending = function(blending = false)
@@ -1223,7 +1214,10 @@ Renderer.prototype.setBackgroundColor = function(r, g, b, a)
 
 Renderer.prototype.setContext = function(context)
 {
-	gl = context;
+	// this.context = context;
+	gl = context.gl;
+	ext = context.ext;
+	this.contextGL = context;
 }
 
 Renderer.prototype.setDummyTexture = function(texture)
@@ -1265,9 +1259,11 @@ Renderer.prototype.getSharedRenderer = function()
 	let newRenderer = new Renderer();
 
 	newRenderer.version = this.version;
-	newRenderer.loadExtensions();
+	// newRenderer.loadExtensions();
 
-	newRenderer.setContext(gl);
+	newRenderer.setContext(this.contextGL);
+
+	newRenderer.hasInstancing = this.contextGL.hasInstancing;
 	
 	newRenderer.setDummyTexture(this.dummyTexture);
 
@@ -1282,6 +1278,8 @@ Renderer.prototype.getSharedRenderer = function()
 	newRenderer.projectionMatrix = this.projectionMatrix;
 	
 	newRenderer.idManager = this.idManager;
+
+
 
 	for(let k in this.programsMap)
 	{
@@ -1300,39 +1298,39 @@ Renderer.prototype.hasBatches = function()
 	return true;
 }
 
-Renderer.prototype.loadExtensions = function()
-{
-	if(this.version === 2)
-	{
-		this.hasInstancing = true;
-		this.instanceExt = 
-		{
-			vertexAttribDivisorANGLE: (a, b)=>
-			{
-				gl.vertexAttribDivisor(a, b);
-			},
-			drawElementsInstancedANGLE : (a, b, c, d, e) =>
-			{
-				gl.drawElementsInstanced(a, b, c, d, e);
-			}
-		}
+// Renderer.prototype.loadExtensions = function()
+// {
+// 	if(this.version === 2)
+// 	{
+// 		this.hasInstancing = true;
+// 		this.instanceExt = 
+// 		{
+// 			vertexAttribDivisorANGLE: (a, b)=>
+// 			{
+// 				gl.vertexAttribDivisor(a, b);
+// 			},
+// 			drawElementsInstancedANGLE : (a, b, c, d, e) =>
+// 			{
+// 				gl.drawElementsInstanced(a, b, c, d, e);
+// 			}
+// 		}
 
-	}
-	else
-	{
-		if(gl.getExtension("ANGLE_instanced_arrays"))
-		{
-			console.log("Context has ANGLE_instanced_arrays");
-			this.instanceExt = gl.getExtension('ANGLE_instanced_arrays');			
-			this.hasInstancing = true;
-		}
+// 	}
+// 	else
+// 	{
+// 		if(gl.getExtension("ANGLE_instanced_arrays"))
+// 		{
+// 			console.log("Context has ANGLE_instanced_arrays");
+// 			this.instanceExt = gl.getExtension('ANGLE_instanced_arrays');			
+// 			this.hasInstancing = true;
+// 		}
 
-		if(gl.getExtension("WEBGL_draw_buffers"))
-		{
-			hasDrawBuffer = true;
-		}
-	}
-}
+// 		if(gl.getExtension("WEBGL_draw_buffers"))
+// 		{
+// 			hasDrawBuffer = true;
+// 		}
+// 	}
+// }
 
 Renderer.prototype.setCanvasElement = function(canvasElement)
 {
@@ -1342,34 +1340,38 @@ Renderer.prototype.setCanvasElement = function(canvasElement)
 
 Renderer.prototype.load = function(canvasElement, options)
 {
-	this.setCanvasElement(canvasElement);
+	// this.setCanvasElement(canvasElement);
 	
-	if(options)
-	{
-		console.log(options);
-	}
-	if(this.version === 2)
-	{
-		gl = canvasElement.getContext("webgl2", options);
-	}
+	// if(options)
+	// {
+	// 	console.log(options);
+	// }
+	// if(this.version === 2)
+	// {
+	// 	gl = canvasElement.getContext("webgl2", options);
+	// }
 	
-	if(!gl)
-	{
-		gl = canvasElement.getContext("webgl", options);
+	// if(!gl)
+	// {
+	// 	gl = canvasElement.getContext("webgl", options);
 
-		if(this.version !== 1)
-		{
-			console.warn(`Failed to load webgl version ${this.version}. Loaded v1 instead.`)
+	// 	if(this.version !== 1)
+	// 	{
+	// 		console.warn(`Failed to load webgl version ${this.version}. Loaded v1 instead.`)
 
-			this.version = 1;
-		}
-	}
+	// 		this.version = 1;
+	// 	}
+	// }
 	
-	window.gl = gl;
-	this.loadExtensions();
-	
-	
+	// window.gl = gl;
+	// this.loadExtensions();
+	let gl = this.contextGL.gl;
+
+	this.hasInstancing = this.contextGL.hasInstancing;
+
 	gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+
+
 	
 
 	// Load shaders
@@ -1377,7 +1379,7 @@ Renderer.prototype.load = function(canvasElement, options)
 
 	this.loadShaders(Renderer.DEFAULT_WIREFRAME_PROGRAM_ID, Shaders.WIREFRAME_VERTEX_SHADER_SOURCE, Shaders.WIREFRAME_FRAGMENT_SHADER_SOURCE, false);
 
-	if(this.hasInstancing)
+	if(this.contextGL.hasInstancing)
 	{
 		this.loadShaders(Renderer.INSTANCE_PROGRAM_ID, Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, true);
 
@@ -1480,7 +1482,7 @@ function _enableAttribs (attribs)
 		{
 			if(this.attribDivisors[a] > 0)
 			{
-				this.instanceExt.vertexAttribDivisorANGLE(a, 0);
+				this.contextGL.ext.vertexAttribDivisor(a, 0);
 				this.attribDivisors[a] = 0;
 			}
 		}
@@ -1522,13 +1524,13 @@ function _setAttribDivisors(attribs, size)
 		{
 			if(this.attribDivisors[a] !== size)
 			{
-				this.instanceExt.vertexAttribDivisorANGLE(a, size);
+				this.contextGL.ext.vertexAttribDivisor(a, size);
 				this.attribDivisors[a] = size;
 			}
 		}
 		else
 		{
-			this.instanceExt.vertexAttribDivisorANGLE(a, size);
+			this.contextGL.ext.vertexAttribDivisor(a, size);
 			this.attribDivisors[a] = size;
 		}
 	}

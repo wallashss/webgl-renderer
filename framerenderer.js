@@ -2,7 +2,7 @@
 
 const Shaders = require("./shaders");
 const ShaderBuilder = require("./shaderbuilder");
-const FrameBuffer = require("./framebuffer");
+const Framebuffer = require("./framebuffer");
 
 
 function FrameRenderer(gl, fragmentShader, version)

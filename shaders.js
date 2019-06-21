@@ -8,9 +8,7 @@ uniform highp mat4 modelView;
 uniform highp mat4 modelViewProjection;
 uniform highp mat4 normalMatrix;
 uniform vec4 color;
-// uniform highp vec4 picking;
 
-// varying vec4 vPicking;
 varying vec4 currentColor;
 varying vec3 vPosition;
 varying vec3 vNormal;
