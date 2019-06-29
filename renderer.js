@@ -17,8 +17,6 @@ function Renderer()
 	this.wireFrameBuffer = null;
 	
 	this.dummyTexture = null;
-	// this.batchesKeys = [];
-	// this.batches = {};
 	this.lines = [];
 	this.points = [];
 
@@ -173,9 +171,13 @@ Renderer.prototype.addProgram = function(newProgram, programId)
 
 Renderer.prototype.draw = function(batches)
 {
-
 	let gl = this.contextGL.gl;
 	let ext = this.contextGL.ext;
+
+	if(!gl)
+	{
+		return;
+	}
 	
 	// Clear screen
 	if(!this.disableClearColor && !this.disableClearDepth)
@@ -427,7 +429,7 @@ Renderer.prototype.draw = function(batches)
 	}
 
 	// Draw Lines
-	if(this.lines.length > 0)
+	if(batches.lines.length > 0)
 	{
 		currentProgram = this.mainProgram;
 		_enableAttribs.call(this, currentProgram.attribs);
@@ -441,9 +443,9 @@ Renderer.prototype.draw = function(batches)
 		gl.uniformMatrix4fv(currentProgram.modelViewUniform, false, mv);
 		gl.uniformMatrix4fv(currentProgram.modelViewProjectionUniform, false, mvp);
 
-		for(let i =0 ; i < this.lines.length; i++)
+		for(let i =0 ; i < batches.lines.length; i++)
 		{
-			let l = this.lines[i];
+			let l = batches.lines[i];
 
 			gl.uniform1i(currentProgram.texSamplerUniform, 0);
 			gl.bindTexture(gl.TEXTURE_2D, this.dummyTexture);
@@ -461,18 +463,15 @@ Renderer.prototype.draw = function(batches)
 	
 
 	// Draw Points
-	if(this.points.length > 0)
+	if(batches.points.length > 0)
 	{
 		currentProgram = this.mainProgram;
 		_enableAttribs.call(this, currentProgram.attribs);
-		gl.useProgram(currentProgram.program);
-
-		// mat4.identity(m);
-		
+		gl.useProgram(currentProgram.program);		
 
 		gl.uniform1f(currentProgram.unlitUniform, 1.0);
 		
-		for(let i = 0; i < this.points.length; i++)
+		for(let i = 0; i < batches.points.length; i++)
 		{
 			let point = this.points[i];
 
@@ -517,26 +516,6 @@ Renderer.prototype.draw = function(batches)
 	return true;
 }
 
-// Renderer.prototype.updateViewBounds = function()
-// {
-// 	// let bounds = this.canvas.element.getBoundingClientRect();
-	
-// 	// this.canvas.element.width = bounds.width;
-// 	// this.canvas.element.height = bounds.height;
-// 	// this.canvas.width = bounds.width;
-// 	// this.canvas.height = bounds.height;
-// }
-
-Renderer.prototype.forceUseBlending = function(blending = false)
-{
-	throw 'to do';
-	// for(let i = 0 ; i < this.batchesKeys.length; i++)
-	// {
-	// 	let b = this.batches[this.batchesKeys[i]];
-	// 	b.useBlending = blending;
-	// }
-}
-
 Renderer.prototype.setViewport = function(x, y, width, height, willDraw = false)
 {
 	let gl = this.contextGL.gl;
@@ -545,14 +524,6 @@ Renderer.prototype.setViewport = function(x, y, width, height, willDraw = false)
 		gl.viewport(x, y, width, height);
 	}
 }
-
-// Renderer.prototype.onResize = function()
-// {
-// 	if(this.canvas.element)
-// 	{
-// 		this.updateViewBounds();
-// 	}
-// }
 
 Renderer.prototype.enablePolygonOffset = function(factor = -2, units = -3)
 {
@@ -604,18 +575,11 @@ Renderer.prototype.setBackgroundColor = function(r, g, b, a)
 
 Renderer.prototype.setContext = function(context)
 {
-	// this.context = context;
-	// gl = context.gl;
-	// ext = context.ext;
 	this.contextGL = context;
 }
 
 Renderer.prototype.setResourceManager = function(manager)
 {
-	// this.context = context;
-	// gl = context.gl;
-	// ext = context.ext;
-	// this.contextGL = context;
 	this.resourceManager = manager;
 }
 
@@ -653,47 +617,6 @@ Renderer.prototype.loadWireframeBuffer = function(sizeBytes = Math.pow(2, 16))
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.wireFrameBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER, buffer, gl.STATIC_DRAW);
 }
-
-Renderer.prototype.getSharedRenderer = function()
-{
-	let newRenderer = new Renderer();
-
-	newRenderer.version = this.version;
-	// newRenderer.loadExtensions();
-
-	newRenderer.setContext(this.contextGL);
-
-	newRenderer.hasInstancing = this.contextGL.hasInstancing;
-	
-	newRenderer.setDummyTexture(this.dummyTexture);
-
-	newRenderer.setCanvasElement(this.canvas.element);
-
-	newRenderer.textureMap = this.textureMap;
-
-	newRenderer.wireFrameBuffer = this.wireFrameBuffer;
-
-	newRenderer.viewMatrix = this.viewMatrix;
-
-	newRenderer.projectionMatrix = this.projectionMatrix;
-	
-	newRenderer.idManager = this.idManager;
-
-
-
-	for(let k in this.programsMap)
-	{
-		newRenderer.addProgram(this.programsMap[k], k);
-	}
-
-	return newRenderer;
-}
-
-// Renderer.prototype.setCanvasElement = function(canvasElement)
-// {
-// 	this.canvas.element = canvasElement;
-// 	this.updateViewBounds();
-// }
 
 Renderer.prototype.load = function(canvasElement, options)
 {
@@ -751,14 +674,9 @@ Renderer.prototype.load = function(canvasElement, options)
 	return true;
 }
 
-// Renderer.prototype.getContext = function()
-// {
-// 	return gl;
-// }
 
 Renderer.prototype.setViewMatrix = function(viewMatrix)
 {
-	// this.viewMatrix = mat4.clone(viewMatrix);
 	mat4.copy(this.viewMatrix, viewMatrix);
 }
 

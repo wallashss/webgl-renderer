@@ -22,7 +22,6 @@ BatchManager.prototype.getBatches = function()
 	return this;
 }
 
-
 BatchManager.prototype.addInstances = function(mesh, colors, matrices, textureName, unlit, isBillboard)
 {
 	if(!matrices)
