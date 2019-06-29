@@ -5,7 +5,6 @@ const ShaderBuilder = require("./shaderbuilder");
 
 const glMatrix = require("gl-matrix");
 const vec3 = glMatrix.vec3;
-const vec4 = glMatrix.vec4;
 const mat4 = glMatrix.mat4;
 
 function Renderer()
@@ -32,7 +31,7 @@ function Renderer()
 	this.viewMatrix = mat4.create();
 	this.projectionMatrix = mat4.create();
 	
-	this.drawPicking = false;
+
 	this.translation = vec3.create();
 	this.scale = vec3.fromValues(1.0, 1.0, 1.0);
 	this.rotation = mat4.create();
@@ -49,6 +48,8 @@ function Renderer()
 
 	this.disableClearDepth = false;
 	this.disableClearColor = false;
+
+	this.forceUseBlend = null; // null - set to batch decide, true - always use blend, false - never use blending
 }
 
 Renderer.prototype.loadShaders = function(id, vertexSource, fragmentSource, isInstance)
@@ -391,10 +392,19 @@ Renderer.prototype.draw = function(batches)
 		{
 			gl.uniform4fv(currentProgram.colorUniform, b.color);
 		}
-		
 
 		// Setup blend for proper drawing transparent objects
-		if((!b.useBlending && !b.isWireframe) && blendEnabled)
+		if(this.forceUseBlend === true && !blendEnabled)
+		{
+			gl.enable(gl.BLEND);
+			blendEnabled = true;
+		}
+		else if(this.forceUseBlend === false && blendEnabled)
+		{
+			gl.disable(gl.BLEND);
+			blendEnabled = false;
+		}
+		else if((!b.useBlending && !b.isWireframe) && blendEnabled)
 		{
 			gl.disable(gl.BLEND);
 			blendEnabled = false;
@@ -525,6 +535,17 @@ Renderer.prototype.setViewport = function(x, y, width, height, willDraw = false)
 	}
 }
 
+
+Renderer.prototype.clearForceBlending = function()
+{
+	this.forceUseBlend = null;
+}
+
+Renderer.prototype.setForceBlending = function(force)
+{
+	this.forceUseBlend = force;
+}
+
 Renderer.prototype.enablePolygonOffset = function(factor = -2, units = -3)
 {
 	let gl = this.contextGL.gl;
@@ -618,13 +639,13 @@ Renderer.prototype.loadWireframeBuffer = function(sizeBytes = Math.pow(2, 16))
 	gl.bufferData(gl.ARRAY_BUFFER, buffer, gl.STATIC_DRAW);
 }
 
-Renderer.prototype.load = function(canvasElement, options)
+Renderer.prototype.load = function()
 {
 	let gl = this.contextGL.gl;
 
 	this.hasInstancing = this.contextGL.hasInstancing;
 
-	gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+	// gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 
 	// Load shaders
 	this.loadShaders(Renderer.DEFAULT_PROGRAM_ID, Shaders.VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, false);

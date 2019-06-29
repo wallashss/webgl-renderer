@@ -5,6 +5,8 @@ const vec3 = glMatrix.vec3;
 const vec4 = glMatrix.vec4;
 const mat4 = glMatrix.mat4;
 
+let DEFAULT_NEXT_ID = 1;
+
 function BatchManager(contextGL)
 {
 	this.batchesKeys = [];
@@ -14,7 +16,21 @@ function BatchManager(contextGL)
 
 	this.contextGL = contextGL;
 
-	this.idManager = {_nextInstanceId : 1};
+	this.generateId = () =>
+	{
+		// console.log(this.name, DEFAULT_NEXT_ID);
+		// console.trace("id");
+		
+		let id = DEFAULT_NEXT_ID;
+		DEFAULT_NEXT_ID++;
+		return id;
+	}
+}
+
+
+BatchManager.prototype.setGenerateId = function(callback)
+{
+	this.generateId = callback || (() => {});
 }
 
 BatchManager.prototype.getBatches = function()
@@ -22,8 +38,8 @@ BatchManager.prototype.getBatches = function()
 	return this;
 }
 
-BatchManager.prototype.addInstances = function(mesh, colors, matrices, textureName, unlit, isBillboard)
-{
+BatchManager.prototype.addInstances = function(mesh, matrices, colors, options = {})
+{	
 	if(!matrices)
 	{
 		let err = "Matrices can not be null";
@@ -39,7 +55,7 @@ BatchManager.prototype.addInstances = function(mesh, colors, matrices, textureNa
 	if(matrices.constructor === WebGLBuffer)
 	{
 		// go on
-		return _addInstance.call(this, mesh, colors, matrices, textureName, unlit, isBillboard);
+		return _addInstance.call(this, mesh, matrices, colors, options);
 	}
 	if((matrices.constructor != Float32Array || colors.constructor != Uint8Array) && 
 		colors.length !== matrices.length)
@@ -53,7 +69,7 @@ BatchManager.prototype.addInstances = function(mesh, colors, matrices, textureNa
 		console.log("Colors and instances must have same length");
 		return;
 	}
-	return _addInstance.call(this, mesh, colors, matrices, textureName, unlit, isBillboard);
+	return _addInstance.call(this, mesh, matrices, colors, options);
 }
 
 //  TODO: Clear memeory resources
@@ -88,10 +104,9 @@ BatchManager.prototype.addBatch = function(b, idx = null)
 	}
 	else
 	{
-		let idx = this.idManager._nextInstanceId; // we must resever alpha component
+		let idx = this.generateId();
 		this.batchesKeys.push(idx);
 		this.batches[idx] = b;
-		this.idManager._nextInstanceId++;
 	}
 
 	return null;
@@ -100,7 +115,8 @@ BatchManager.prototype.addBatch = function(b, idx = null)
 BatchManager.prototype.addPointMesh = function(meshId, points, colors, transform, textureName = null, unlit = false, isBillboard = false)
 {
 	let gl = this.contextGL.gl;
-	const outIdx = this.idManager._nextInstanceId;
+	const outIdx = this.generateId();
+
 	let pointsBufferId = gl.createBuffer();
 	
 	let pointsCount = points.length / 3;
@@ -145,7 +161,6 @@ BatchManager.prototype.addPointMesh = function(meshId, points, colors, transform
 
 	this.batches[outIdx] = b;	
 	this.batchesKeys.push(outIdx);
-	this.idManager._nextInstanceId++;
 	return outIdx;
 	
 }
@@ -166,15 +181,11 @@ BatchManager.prototype.addObject = function(vertices, elements, color, transform
 		c = vec4.clone(color);
 	}
 	
-	let idx = this.idManager._nextInstanceId; // we must resever alpha component
-	let id = intToVec4(idx);
-	this.idManager._nextInstanceId++;
-	// this.idManager._nextInstanceId+=255;
+	let idx = this.generateId();
 	
 	let b = {mesh: mesh,
 		transform: t,
 		color: c,
-		id: id,
 		visible: true,
 		textureName: textureName, 
 		programId: BatchManager.DEFAULT_PROGRAM_ID,
@@ -231,6 +242,7 @@ BatchManager.prototype.addObjectInstances = function(vertices, elements, colors,
 
 BatchManager.prototype.updateColor = function(idx, color, forceBlending =  false)
 {
+	let gl = this.contextGL.gl;
 	if(this.batches.hasOwnProperty(idx))
 	{
 		let b = this.batches[idx];
@@ -250,7 +262,8 @@ BatchManager.prototype.updateColor = function(idx, color, forceBlending =  false
 		}
 		else
 		{
-			let offset =  idx - b.firstIdx;
+			// let offset =  idx - b.firstIdx;
+			let offset = b.offsetMap[idx];
 			let c = vec4fToVec4b(color); 
 			gl.bindBuffer(gl.ARRAY_BUFFER, b.colorBufferId);
 			gl.bufferSubData(gl.ARRAY_BUFFER, offset * 4, c);
@@ -261,6 +274,7 @@ BatchManager.prototype.updateColor = function(idx, color, forceBlending =  false
 
 BatchManager.prototype.updateTransform = function(idx, transform)
 {
+	let gl = this.contextGL.gl;
 	if(this.batches.hasOwnProperty(idx))
 	{
 		let b = this.batches[idx];
@@ -271,8 +285,9 @@ BatchManager.prototype.updateTransform = function(idx, transform)
 		}
 		else
 		{
-			let offset =  idx - b.firstIdx;
+			// let offset =  idx - b.firstIdx;
 			// let c = vec4fToVec4b(color); 
+			let offset = b.offsetMap[idx];
 			gl.bindBuffer(gl.ARRAY_BUFFER, b.modelBufferId);
 			gl.bufferSubData(gl.ARRAY_BUFFER, offset * 16 * 4, transform);
 			gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -358,6 +373,7 @@ BatchManager.prototype.addLines = function(vertices, color)
 
 BatchManager.prototype.clearBatches = function()
 {
+	let gl = this.contextGL.gl;
 	for(let i = 0; i < this.batchesKeys.length; i++)
 	{
 		let b = this.batches[this.batchesKeys[i]];
@@ -383,17 +399,6 @@ BatchManager.prototype.sortBatches = function(callback)
 	this.batchesKeys.sort(callback);
 }
 
-function intToVec4(iValue)
-{
-	iValue = iValue << 8;
-	let a1 = ((0xFF000000 & iValue) >> 24) /255.0;
-	let a2 = ((0x00FF0000 & iValue) >> 16) /255.0;
-	let a3 = ((0x0000FF00 & iValue) >> 8) /255.0;
-	// let a4 = ((0x000000FF & iValue)) /255.0;
-	let out = vec4.fromValues(a1, a2, a3, 1);
-	return out;
-}
-
 function vec4fToVec4b(v)
 {
 	let out = new Uint8Array(4);
@@ -405,22 +410,28 @@ function vec4fToVec4b(v)
 	return out;
 }
 
-function _addInstance(mesh, colors, matrices, textureName, unlit = false, isBillboard = false)
+function _addInstance(mesh, matrices, colors, options)
 {
 	let gl = this.contextGL.gl;
-	const outIdx = this.idManager._nextInstanceId;
+	// const outIdx = this.generateId();
 	let out = [];
+
+
+	let isBillboard = options.isBillboard || false;
+	let textureName = options.textureName || null;
+	let unlit = options.hasOwnProperty("unlit") ? options.unlit : false;
 
 	let useBlending = false;
 	let useDepthMask = false;
-	if(!this.contextGL.hasInstancing || matrices.length === 1)
+
+	if(!this.contextGL.hasInstancing)
 	{
-		this.idManager._nextInstanceId += matrices.length ;
+		const outIdx = this.generateId();
 		for(let i = 0; i < matrices.length; i++)
 		{
-			let idx = outIdx + i; 
+			// let idx = outIdx + i; 
+			let idx = this.generateId();
 			out.push(idx);
-			let id = intToVec4(idx);
 			let t = mat4.clone(matrices[i]);
 			let c = vec4.clone(colors[i]);
 
@@ -430,10 +441,9 @@ function _addInstance(mesh, colors, matrices, textureName, unlit = false, isBill
 				visible: true,
 				isWireframe: false,
 				textureName: textureName,
-				id: id,
 				programId: BatchManager.DEFAULT_PROGRAM_ID,
-				unlit: unlit || false,
-				isBillboard: isBillboard || false,
+				unlit: unlit,
+				isBillboard: isBillboard,
 				isInstance: false}
 			this.batchesKeys.push(idx);
 			this.batches[idx] = b;
@@ -485,13 +495,15 @@ function _addInstance(mesh, colors, matrices, textureName, unlit = false, isBill
 			gl.bufferData(gl.ARRAY_BUFFER, matricesArray, gl.STATIC_DRAW);
 		}
 
-		this.idManager._nextInstanceId += instanceCount;
-
+		let offsetMap = {};
 		for(let i = 0 ; i < instanceCount; i++)
 		{
-			let idx = outIdx + i; 
+			// let idx = outIdx + i; 
+			let idx = this.generateId();
+			offsetMap[idx] = i;
 			out.push(idx);
 		}
+
 
 		// Upload colors
 		let colorBufferId = gl.createBuffer();
@@ -546,7 +558,8 @@ function _addInstance(mesh, colors, matrices, textureName, unlit = false, isBill
 			colorBufferId: colorBufferId,
 			textureName: textureName,
 			visible: true,
-			firstIdx: outIdx,
+			// firstIdx: outIdx,
+			offsetMap: offsetMap,
 			isWireframe: false,
 			useBlending: useBlending,
 			useDepthMask: useDepthMask,
@@ -555,19 +568,23 @@ function _addInstance(mesh, colors, matrices, textureName, unlit = false, isBill
 			programId: BatchManager.INSTANCE_PROGRAM_ID,
 			isInstance: true}
 	
-		for(let i = 0 ; i < instanceCount; i++)
+		// for(let i = 0 ; i < instanceCount; i++)
+		// {
+		// 	let idx = outIdx + i;
+		// 	this.batches[idx] = b;	
+		// }
+		for(let i = 0 ; i < out.length; i++)
 		{
-			let idx = outIdx + i;
+			let idx = out[i];
 			this.batches[idx] = b;	
 		}
-		this.batchesKeys.push(outIdx);
+		this.batchesKeys.push(out[0]);
 	}
 	return out;
 }
 
 BatchManager.prototype.forceUseBlending = function(blending = false)
 {
-	// throw 'to do';
 	for(let i = 0 ; i < this.batchesKeys.length; i++)
 	{
 		let b = this.batches[this.batchesKeys[i]];
