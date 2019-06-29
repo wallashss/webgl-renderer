@@ -3,10 +3,6 @@
 const Shaders = require("./shaders");
 const ShaderBuilder = require("./shaderbuilder");
 
-// Global gl context... It is nice to debug.
-let gl = null;
-let ext = null;
-
 const glMatrix = require("gl-matrix");
 const vec3 = glMatrix.vec3;
 const vec4 = glMatrix.vec4;
@@ -21,11 +17,13 @@ function Renderer()
 	this.wireFrameBuffer = null;
 	
 	this.dummyTexture = null;
-	this.batchesKeys = [];
-	this.batches = {};
+	// this.batchesKeys = [];
+	// this.batches = {};
 	this.lines = [];
 	this.points = [];
-	this.textureMap = {};
+
+	this.resourceManager = null;
+	
 
 	// let hasDrawBuffer = false;
 	this.backgroundColor = {r: 0.5, g: 0.5, b: 0.5, a: 1.0};
@@ -48,7 +46,6 @@ function Renderer()
 	this.enabledVertexAttribMap = [];
 	this.attribDivisors = {};
 
-	// this.instanceExt = null;
 
 	this.idManager = {_nextInstanceId : 1};
 
@@ -56,9 +53,9 @@ function Renderer()
 	this.disableClearColor = false;
 }
 
-
 Renderer.prototype.loadShaders = function(id, vertexSource, fragmentSource, isInstance)
 {
+	let gl = this.contextGL.gl;
 	let programId = id ? id : "_default";
 	gl.useProgram(null);
 
@@ -174,629 +171,12 @@ Renderer.prototype.addProgram = function(newProgram, programId)
 	this.programsMap[programId] = newProgram;
 }
 
-Renderer.prototype.uploadBuffer = function(vertices)
+Renderer.prototype.draw = function(batches)
 {
-	let newBufferId = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, newBufferId);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+	let gl = this.contextGL.gl;
+	let ext = this.contextGL.ext;
 	
-	return newBufferId;
-}
-
-Renderer.prototype.uploadMesh = function(vertices, elements)
-{
-	if(!vertices)
-	{
-		let err = "Vertices can not be null";
-		throw err;
-	}
-
-	if(!elements)
-	{
-		let err = "Elements can not be null";
-		throw err;
-	}
-
-
-	let verticesBufferId = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
-
-	if(vertices.constructor === Float32Array)
-	{
-		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-	}
-	else
-	{
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-	}
-	
-	let elementsBufferId = gl.createBuffer();
-	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementsBufferId);
-	if(elements.constructor !== Uint16Array)
-	{
-		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(elements), gl.STATIC_DRAW);
-	}
-	else
-	{
-		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, elements, gl.STATIC_DRAW);
-	}
-
-	let count = elements.length;
-
-	return {verticesBufferId: verticesBufferId, elementsBufferId: elementsBufferId, count: count};
-}
-
-Renderer.prototype.addObject = function(vertices, elements, color, transform, textureName, unlit)
-{
-	let mesh = this.uploadMesh(vertices, elements);
-
-	let t = mat4.create();
-	if(transform)
-	{
-		mat4.copy(t, transform);
-	}
-	
-	let c = vec4.fromValues(0.8, 0.8, 0.8, 1.0);
-	if(color)
-	{
-		c = vec4.clone(color);
-	}
-	
-	let idx = this.idManager._nextInstanceId; // we must resever alpha component
-	let id = intToVec4(idx);
-	this.idManager._nextInstanceId++;
-	// this.idManager._nextInstanceId+=255;
-	
-	let b = {mesh: mesh,
-		transform: t,
-		color: c,
-		id: id,
-		visible: true,
-		textureName: textureName, 
-		programId: Renderer.DEFAULT_PROGRAM_ID,
-		isInstance: false,
-		unlit: unlit || false};
-
-	this.batchesKeys.push(idx);
-	this.batches[idx] = b;
-	return idx;
-}
-
-//  TODO: Clear memeory resources
-Renderer.prototype.removeObject = function(id)
-{
-	let idx  = this.batchesKeys.indexOf(id);
-	if(idx >= 0)
-	{
-		this.batchesKeys.splice(idx, 1);
-	}
-	if(this.batches.hasOwnProperty(id))
-	{
-		delete this.batches[id];
-	}
-}
-
-Renderer.prototype.getBatch = function(id)
-{
-	if(this.batches.hasOwnProperty(id))
-	{
-		return this.batches[id];
-	}
-	return null;
-}
-
-Renderer.prototype.addBatch = function(b, idx = null)
-{
-	if(idx)
-	{
-		this.batchesKeys.push(idx);
-		this.batches[idx] = b;
-	}
-	else
-	{
-		let idx = this.idManager._nextInstanceId; // we must resever alpha component
-		this.batchesKeys.push(idx);
-		this.batches[idx] = b;
-		this.idManager._nextInstanceId++;
-	}
-
-	return null;
-}
-
-Renderer.prototype.addPointMesh = function(meshId, points, colors, transform, textureName = null, unlit = false, isBillboard = false)
-{
-	const outIdx = this.idManager._nextInstanceId;
-	let pointsBufferId = gl.createBuffer();
-	
-	let pointsCount = points.length / 3;
-	
-	// Upload points
-	gl.bindBuffer(gl.ARRAY_BUFFER, pointsBufferId);
-	gl.bufferData(gl.ARRAY_BUFFER, points, gl.STATIC_DRAW);
-
-	// Upload colors
-	let colorBufferId = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, colorBufferId);
-
-	let useBlending = false;
-	// let colorsCount = colors.length / 4;
-	for(let i = 0; i < pointsCount; i++)
-	{
-		if(colors[i*4+3] < 255)
-		{
-			useBlending = true;
-			break;
-		}
-	}
-	gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
-
-	
-	let b = {mesh : meshId,
-		modelBufferId: pointsBufferId,
-		instanceCount: pointsCount,
-		colorBufferId: colorBufferId,
-		textureName: textureName,
-		color: vec4.fromValues(1, 1, 1, 1),
-		visible: true,
-		firstIdx: outIdx,
-		transform: transform || mat4.create(),
-		// pickBufferId: pickBufferId,
-		useBlending: useBlending,
-		unlit : unlit || false,
-		isBillboard: true,
-		isPointMesh: true,
-		programId: Renderer.POINTMESH_PROGRAM_ID,
-		isInstance: true}
-
-	this.batches[outIdx] = b;	
-	this.batchesKeys.push(outIdx);
-	this.idManager._nextInstanceId++;
-	return outIdx;
-	
-}
-
-function _addInstance(mesh, colors, matrices, textureName, unlit = false, isBillboard = false)
-{
-	const outIdx = this.idManager._nextInstanceId;
-	let out = [];
-
-	let useBlending = false;
-	let useDepthMask = false;
-	if(!this.hasInstancing || matrices.length === 1)
-	{
-		this.idManager._nextInstanceId += matrices.length ;
-		for(let i = 0; i < matrices.length; i++)
-		{
-			let idx = outIdx + i; 
-			out.push(idx);
-			let id = intToVec4(idx);
-			let t = mat4.clone(matrices[i]);
-			let c = vec4.clone(colors[i]);
-
-			let b = {mesh,
-				transform: t,
-				color: c,
-				visible: true,
-				isWireframe: false,
-				textureName: textureName,
-				id: id,
-				programId: Renderer.DEFAULT_PROGRAM_ID,
-				unlit: unlit || false,
-				isBillboard: isBillboard || false,
-				isInstance: false}
-			this.batchesKeys.push(idx);
-			this.batches[idx] = b;
-		}
-		return outIdx;
-	}
-	else
-	{
-		let modelBufferId = null; 
-		
-		// Upload matrices
-		let instanceCount = 0;
-		if(matrices.constructor === WebGLBuffer)
-		{
-			modelBufferId = matrices;
-			if(colors.constructor === Uint8Array)
-			{
-				instanceCount = colors.length / 4;
-			}
-			else
-			{
-				instanceCount = colors.length;
-			}
-		}
-		else if(matrices.constructor === Float32Array)
-		{
-			modelBufferId = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, modelBufferId);
-
-			instanceCount = matrices.length / 16;
-			gl.bufferData(gl.ARRAY_BUFFER, matrices, gl.STATIC_DRAW);
-		}
-		else
-		{
-			modelBufferId = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, modelBufferId);
-
-			instanceCount = matrices.length;
-			
-			let matricesArray = new Float32Array(matrices.length * 16);
-			for(let i = 0; i < matrices.length; i++)
-			{
-				let m = matrices[i];
-				for(let j = 0; j < 16; j++)
-				{
-					matricesArray[i*16 + j] = m[j];
-				}
-			}
-			gl.bufferData(gl.ARRAY_BUFFER, matricesArray, gl.STATIC_DRAW);
-		}
-
-		this.idManager._nextInstanceId += instanceCount;
-
-		for(let i = 0 ; i < instanceCount; i++)
-		{
-			let idx = outIdx + i; 
-			out.push(idx);
-		}
-
-		// Upload colors
-		let colorBufferId = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, colorBufferId);
-
-		if(textureName)
-		{
-			useBlending = true;
-		}
-
-		if(isBillboard)
-		{
-			useDepthMask = true;
-		}
-
-		if(colors.constructor === Uint8Array)
-		{
-			let colorsCount = colors.length / 4;
-			for(let i = 0; i < colorsCount; i++)
-			{
-				if(colors[i*4+3] < 255)
-				{
-					useBlending = true;
-					useDepthMask = true;
-					break;
-				}
-			}
-			gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
-		}
-		else
-		{
-			let colorArray = new Uint8Array(colors.length * 4);
-			for(let i = 0; i < colors.length ; i++)
-			{
-				let c = vec4fToVec4b(colors[i]);
-				for(let j = 0; j < 4; j++)
-				{
-					colorArray[i*4 + j] = c[j];
-					if(j == 3 && c[j] < 1.0)
-					{
-						useBlending = true;
-					}
-				}
-				
-			}
-			gl.bufferData(gl.ARRAY_BUFFER, colorArray, gl.STATIC_DRAW);
-		}
-
-		let b = {mesh,
-			modelBufferId: modelBufferId,
-			instanceCount: instanceCount,
-			colorBufferId: colorBufferId,
-			textureName: textureName,
-			visible: true,
-			firstIdx: outIdx,
-			isWireframe: false,
-			useBlending: useBlending,
-			useDepthMask: useDepthMask,
-			unlit : unlit || false,
-			isBillboard: isBillboard || false,
-			programId: Renderer.INSTANCE_PROGRAM_ID,
-			isInstance: true}
-	
-		for(let i = 0 ; i < instanceCount; i++)
-		{
-			let idx = outIdx + i;
-			this.batches[idx] = b;	
-		}
-		this.batchesKeys.push(outIdx);
-	}
-	return out;
-}
-
-Renderer.prototype.addInstances = function(mesh, colors, matrices, textureName, unlit, isBillboard)
-{
-	if(!matrices)
-	{
-		let err = "Matrices can not be null";
-		throw err;
-	}
-
-	if(!colors)
-	{
-		let err = "Colors can not be null";
-		throw err;
-	}
-
-	if(matrices.constructor === WebGLBuffer)
-	{
-		// go on
-		return _addInstance.call(this, mesh, colors, matrices, textureName, unlit, isBillboard);
-	}
-	if((matrices.constructor != Float32Array || colors.constructor != Uint8Array) && 
-		colors.length !== matrices.length)
-	{
-		console.log("Colors and instances must have same length");
-		return;
-	}
-	if((matrices.constructor === Float32Array || colors.constructor === Uint8Array) && 
-		(matrices.length / 16 !== colors.length /4 ))
-	{
-		console.log("Colors and instances must have same length");
-		return;
-	}
-	return _addInstance.call(this, mesh, colors, matrices, textureName, unlit, isBillboard);
-}
-
-Renderer.prototype.getSharedMatrices = function(idx)
-{
-	if(this.batches.hasOwnProperty(idx))
-	{
-		let b = this.batches[idx];
-
-		return b.modelBufferId;
-	}
-	return null;
-
-}
-
-Renderer.prototype.addObjectInstances = function(vertices, elements, colors, matrices, textureName, unlit, isBillboard)
-{
-	if(!matrices)
-	{
-		let err = "Matrices can not be null";
-		throw err;
-	}
-
-	if(!colors)
-	{
-		let err = "Colors can not be null";
-		throw err;
-	}
-
-	if((matrices.constructor != Float32Array || colors.constructor != Float32Array) &&
-		colors.length !== matrices.length)
-	{
-		console.log("Colors and instances must have same length");
-		return;
-	}
-	if((matrices.constructor === Float32Array || colors.constructor === Float32Array) && 
-	(matrices.length / 16 !== colors.length /4 ))
-	{
-		console.log("Colors and instances must have same length");
-		return;
-	}
-
-	let mesh = this.uploadMesh(vertices, elements);
-	_addInstance.call(this,mesh, colors, matrices, textureName, unlit, isBillboard);
-}
-
-Renderer.prototype.updateColor = function(idx, color, forceBlending =  false)
-{
-	if(this.batches.hasOwnProperty(idx))
-	{
-		let b = this.batches[idx];
-
-		if(color[3] >= 1 && !forceBlending)
-		{
-			b.useBlending = false;
-		}
-		else
-		{
-			b.useBlending = true;
-		}
-		
-		if(!b.isInstance)
-		{
-			b.color = color;
-		}
-		else
-		{
-			let offset =  idx - b.firstIdx;
-			let c = vec4fToVec4b(color); 
-			gl.bindBuffer(gl.ARRAY_BUFFER, b.colorBufferId);
-			gl.bufferSubData(gl.ARRAY_BUFFER, offset * 4, c);
-			gl.bindBuffer(gl.ARRAY_BUFFER, null);
-		}
-	}
-}
-
-Renderer.prototype.updateTransform = function(idx, transform)
-{
-	if(this.batches.hasOwnProperty(idx))
-	{
-		let b = this.batches[idx];
-
-		if(!b.isInstance)
-		{
-			b.transform = transform;
-		}
-		else
-		{
-			let offset =  idx - b.firstIdx;
-			// let c = vec4fToVec4b(color); 
-			gl.bindBuffer(gl.ARRAY_BUFFER, b.modelBufferId);
-			gl.bufferSubData(gl.ARRAY_BUFFER, offset * 16 * 4, transform);
-			gl.bindBuffer(gl.ARRAY_BUFFER, null);
-		}
-	}
-}
-
-Renderer.prototype.setVisibility = function(idx, visible)
-{
-	if(this.batches.hasOwnProperty(idx))
-	{
-		let b = this.batches[idx];
-
-		b.visible = visible;
-	}
-}
-
-Renderer.prototype.setWireframe = function(idx, wireframe)
-{
-	if(this.batches.hasOwnProperty(idx))
-	{
-		let b = this.batches[idx];
-
-		b.isWireframe = wireframe;
-		if(b.isInstance)
-		{
-			b.programId = wireframe ? Renderer.INSTANCE_WIREFRAME_PROGRAM_ID : Renderer.INSTANCE_PROGRAM_ID;
-		}
-		else
-		{
-			b.programId = wireframe ? Renderer.DEFAULT_WIREFRAME_PROGRAM_ID : Renderer.DEFAULT_PROGRAM_ID;
-		}
-	}
-}
-
-Renderer.prototype.addPoints = function(vertices, color, transform)
-{
-	let verticesBufferId = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
-
-	if(vertices.constructor === Float32Array)
-	{
-		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-	}
-	else
-	{
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-	}
-	
-	if(!transform)
-	{
-		transform = mat4.create();
-	}
-	
-	if(!color)
-	{
-		color = vec4.fromValues(1.0, 1.0, 1.0, 1.0);
-	}
-	
-	this.points.push({verticesBufferId: verticesBufferId,
-				count: vertices.length / 3,
-				vertexSize: 3 * 4, // 3 components * 4 bytes per float
-				color: color,
-				transform: transform});
-}
-
-Renderer.prototype.addLines = function(vertices, color)
-{
-	let verticesBufferId = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);	
-	
-	if(!color)
-	{
-		color = vec4.fromValues(1.0, 1.0, 1.0, 1.0);
-	}
-	
-	this.lines.push({verticesBufferId: verticesBufferId,
-				count: vertices.length / 3,
-				vertexSize: 3 * 4, // 3 components * 4 bytes per float
-				color: color});
-}
-
-Renderer.prototype.addTexture = function(textureName, texture, isNearest)
-{
-	let textureId = gl.createTexture();
-
-	gl.bindTexture(gl.TEXTURE_2D, textureId);
-	gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture);
-
-	isNearest = (isNearest !== null && isNearest !== undefined) ? isNearest : false;
-
-	if(isNearest)
-	{
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-	}
-	else
-	{
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-	}
-
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	
-	gl.bindTexture(gl.TEXTURE_2D, null);
-	
-	this.textureMap[textureName] = textureId;
-}
-
-Renderer.prototype.setTexture = function(textureName, texture, isNearest)
-{
-	if(!this.textureMap.hasOwnProperty(textureName))
-	{
-		this.addTexture(textureName, texture, isNearest);
-		return;
-	}
-
-	let textureId = this.textureMap[textureName];
-
-	gl.bindTexture(gl.TEXTURE_2D, textureId);
-	gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture);
-
-	isNearest = (isNearest !== null && isNearest !== undefined) ? isNearest : false;
-
-	if(isNearest)
-	{
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-	}
-	else
-	{
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-	}
-
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	
-	gl.bindTexture(gl.TEXTURE_2D, null);
-	
-	this.textureMap[textureName] = textureId;
-}
-
-Renderer.prototype.clearBatches = function()
-{
-	for(let i = 0; i < this.batchesKeys.length; i++)
-	{
-		let b = this.batches[this.batchesKeys[i]];
-		gl.deleteBuffer(b.verticesBufferId);
-		gl.deleteBuffer(b.elementsBufferId);
-	}
-	this.batches = {};
-	this.batchesKeys = [];
-	this.points = [];
-}
-
-Renderer.prototype.draw = function()
-{
 	// Clear screen
 	if(!this.disableClearColor && !this.disableClearDepth)
 	{
@@ -811,7 +191,7 @@ Renderer.prototype.draw = function()
 		gl.clear(gl.COLOR_BUFFER_BIT );
 	}
 	
-	if(!this.hasBatches())
+	if(!batches.hasBatches())
 	{
 		return;
 	}
@@ -838,9 +218,11 @@ Renderer.prototype.draw = function()
 	let billboardSet = false;
 
 	gl.activeTexture(gl.TEXTURE0);
-	for(let i = 0; i < this.batchesKeys.length; i++)
+
+	for(let i = 0; i < batches.batchesKeys.length; i++)
 	{
-		let b = this.batches[this.batchesKeys[i]];
+		// let b = this.batches[batches.batchesKeys[i]];
+		let b = batches.batches[batches.batchesKeys[i]];
 		if(!b.visible)
 		{
 			continue;
@@ -978,9 +360,12 @@ Renderer.prototype.draw = function()
 			currentElementBufferId = b.mesh.elementsBufferId;
 		}
 		
-		if(b.textureName && this.textureMap.hasOwnProperty(b.textureName) )
+		// if(b.textureName && this.textureMap.hasOwnProperty(b.textureName) )
+		if(b.textureName && this.resourceManager.textureMap.hasOwnProperty(b.textureName) )
 		{
-			let textureId = this.textureMap[b.textureName];
+			// let textureId = this.textureMap[b.textureName];
+			let textureId = this.resourceManager.textureMap[b.textureName];
+			
 			if(currentTextureId !== textureId)
 			{
 				gl.uniform1i(program.texSamplerUniform, 0);
@@ -1132,49 +517,53 @@ Renderer.prototype.draw = function()
 	return true;
 }
 
-Renderer.prototype.updateViewBounds = function()
-{
-	// let bounds = this.canvas.element.getBoundingClientRect();
+// Renderer.prototype.updateViewBounds = function()
+// {
+// 	// let bounds = this.canvas.element.getBoundingClientRect();
 	
-	// this.canvas.element.width = bounds.width;
-	// this.canvas.element.height = bounds.height;
-	// this.canvas.width = bounds.width;
-	// this.canvas.height = bounds.height;
-}
+// 	// this.canvas.element.width = bounds.width;
+// 	// this.canvas.element.height = bounds.height;
+// 	// this.canvas.width = bounds.width;
+// 	// this.canvas.height = bounds.height;
+// }
 
 Renderer.prototype.forceUseBlending = function(blending = false)
 {
-	for(let i = 0 ; i < this.batchesKeys.length; i++)
-	{
-		let b = this.batches[this.batchesKeys[i]];
-		b.useBlending = blending;
-	}
+	throw 'to do';
+	// for(let i = 0 ; i < this.batchesKeys.length; i++)
+	// {
+	// 	let b = this.batches[this.batchesKeys[i]];
+	// 	b.useBlending = blending;
+	// }
 }
 
 Renderer.prototype.setViewport = function(x, y, width, height, willDraw = false)
 {
+	let gl = this.contextGL.gl;
 	if(gl)
 	{
 		gl.viewport(x, y, width, height);
 	}
 }
 
-Renderer.prototype.onResize = function()
-{
-	if(this.canvas.element)
-	{
-		this.updateViewBounds();
-	}
-}
+// Renderer.prototype.onResize = function()
+// {
+// 	if(this.canvas.element)
+// 	{
+// 		this.updateViewBounds();
+// 	}
+// }
 
 Renderer.prototype.enablePolygonOffset = function(factor = -2, units = -3)
 {
+	let gl = this.contextGL.gl;
 	gl.enable(gl.POLYGON_OFFSET_FILL);
 	gl.polygonOffset(factor, units);
 }
 
 Renderer.prototype.disablePolygonOffset = function()
 {
+	let gl = this.contextGL.gl;
 	gl.disable(gl.POLYGON_OFFSET_FILL);
 }
 
@@ -1206,18 +595,28 @@ Renderer.prototype.setBackgroundColor = function(r, g, b, a)
 	this.backgroundColor.b = b;
 	this.backgroundColor.a = a;
 
+	let gl = this.contextGL.gl;
 	if(gl)
 	{
-		gl.clearColor(r, g, b, a);
+		this.contextGL.gl.clearColor(r, g, b, a);
 	}		
 }
 
 Renderer.prototype.setContext = function(context)
 {
 	// this.context = context;
-	gl = context.gl;
-	ext = context.ext;
+	// gl = context.gl;
+	// ext = context.ext;
 	this.contextGL = context;
+}
+
+Renderer.prototype.setResourceManager = function(manager)
+{
+	// this.context = context;
+	// gl = context.gl;
+	// ext = context.ext;
+	// this.contextGL = context;
+	this.resourceManager = manager;
 }
 
 Renderer.prototype.setDummyTexture = function(texture)
@@ -1227,6 +626,7 @@ Renderer.prototype.setDummyTexture = function(texture)
 
 Renderer.prototype.loadWireframeBuffer = function(sizeBytes = Math.pow(2, 16))
 {
+	let gl = this.contextGL.gl;
 	let trianglesCount = Math.floor(sizeBytes / (3 * 3 * 4)); // 3 components x 3 vertices x 4 bytes per float
 
 	let buffer = new Float32Array(trianglesCount * 3 * 3);
@@ -1289,90 +689,19 @@ Renderer.prototype.getSharedRenderer = function()
 	return newRenderer;
 }
 
-Renderer.prototype.hasBatches = function()
-{
-	if(this.batchesKeys.length === 0 && this.lines.length === 0 && this.points.length === 0)
-	{
-		return false;
-	}
-	return true;
-}
-
-// Renderer.prototype.loadExtensions = function()
+// Renderer.prototype.setCanvasElement = function(canvasElement)
 // {
-// 	if(this.version === 2)
-// 	{
-// 		this.hasInstancing = true;
-// 		this.instanceExt = 
-// 		{
-// 			vertexAttribDivisorANGLE: (a, b)=>
-// 			{
-// 				gl.vertexAttribDivisor(a, b);
-// 			},
-// 			drawElementsInstancedANGLE : (a, b, c, d, e) =>
-// 			{
-// 				gl.drawElementsInstanced(a, b, c, d, e);
-// 			}
-// 		}
-
-// 	}
-// 	else
-// 	{
-// 		if(gl.getExtension("ANGLE_instanced_arrays"))
-// 		{
-// 			console.log("Context has ANGLE_instanced_arrays");
-// 			this.instanceExt = gl.getExtension('ANGLE_instanced_arrays');			
-// 			this.hasInstancing = true;
-// 		}
-
-// 		if(gl.getExtension("WEBGL_draw_buffers"))
-// 		{
-// 			hasDrawBuffer = true;
-// 		}
-// 	}
+// 	this.canvas.element = canvasElement;
+// 	this.updateViewBounds();
 // }
-
-Renderer.prototype.setCanvasElement = function(canvasElement)
-{
-	this.canvas.element = canvasElement;
-	this.updateViewBounds();
-}
 
 Renderer.prototype.load = function(canvasElement, options)
 {
-	// this.setCanvasElement(canvasElement);
-	
-	// if(options)
-	// {
-	// 	console.log(options);
-	// }
-	// if(this.version === 2)
-	// {
-	// 	gl = canvasElement.getContext("webgl2", options);
-	// }
-	
-	// if(!gl)
-	// {
-	// 	gl = canvasElement.getContext("webgl", options);
-
-	// 	if(this.version !== 1)
-	// 	{
-	// 		console.warn(`Failed to load webgl version ${this.version}. Loaded v1 instead.`)
-
-	// 		this.version = 1;
-	// 	}
-	// }
-	
-	// window.gl = gl;
-	// this.loadExtensions();
 	let gl = this.contextGL.gl;
 
 	this.hasInstancing = this.contextGL.hasInstancing;
 
 	gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-
-
-	
 
 	// Load shaders
 	this.loadShaders(Renderer.DEFAULT_PROGRAM_ID, Shaders.VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, false);
@@ -1422,10 +751,10 @@ Renderer.prototype.load = function(canvasElement, options)
 	return true;
 }
 
-Renderer.prototype.getContext = function()
-{
-	return gl;
-}
+// Renderer.prototype.getContext = function()
+// {
+// 	return gl;
+// }
 
 Renderer.prototype.setViewMatrix = function(viewMatrix)
 {
@@ -1450,13 +779,9 @@ Renderer.prototype.setScale = function(newScale)
 	this.scale = vec3.clone(newScale);
 }
 
-Renderer.prototype.sortBatches = function(callback)
-{
-	this.batchesKeys.sort(callback);
-}
-
 function _enableAttribs (attribs)
 {
+	let gl = this.contextGL.gl;
 	for(let i = this.enabledVertexAttribMap.length - 1; i >= 0; i--)
 	{
 		let a = this.enabledVertexAttribMap[i];
@@ -1487,28 +812,6 @@ function _enableAttribs (attribs)
 			}
 		}
 	}
-}
-
-function intToVec4(iValue)
-{
-	iValue = iValue << 8;
-	let a1 = ((0xFF000000 & iValue) >> 24) /255.0;
-	let a2 = ((0x00FF0000 & iValue) >> 16) /255.0;
-	let a3 = ((0x0000FF00 & iValue) >> 8) /255.0;
-	// let a4 = ((0x000000FF & iValue)) /255.0;
-	let out = vec4.fromValues(a1, a2, a3, 1);
-	return out;
-}
-
-function vec4fToVec4b(v)
-{
-	let out = new Uint8Array(4);
-	out[0] = Math.min(Math.max(v[0], 0), 1) * 255;
-	out[1] = Math.min(Math.max(v[1], 0), 1) * 255;
-	out[2] = Math.min(Math.max(v[2], 0), 1) * 255;
-	out[3] = Math.min(Math.max(v[3], 0), 1) * 255;
-	
-	return out;
 }
 
 function _setAttribDivisors(attribs, size)
