@@ -240,6 +240,19 @@ BatchManager.prototype.addObjectInstances = function(vertices, elements, colors,
 	_addInstance.call(this,mesh, colors, matrices, textureName, unlit, isBillboard);
 }
 
+BatchManager.prototype.updateColorBuffer = function(idx, colors)
+{
+	let gl = this.contextGL.gl;
+	if(this.batches.hasOwnProperty(idx))
+	{
+		let b = this.batches[idx];
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, b.colorBufferId);
+		gl.bufferSubData(gl.ARRAY_BUFFER, 0, colors);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+	}
+}
+
 BatchManager.prototype.updateColor = function(idx, color, forceBlending =  false)
 {
 	let gl = this.contextGL.gl;
