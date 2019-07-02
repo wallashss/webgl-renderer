@@ -170,7 +170,7 @@ Renderer.prototype.addProgram = function(newProgram, programId)
 	this.programsMap[programId] = newProgram;
 }
 
-Renderer.prototype.draw = function(batches)
+Renderer.prototype.draw = function(batchManager)
 {
 	let gl = this.contextGL.gl;
 	let ext = this.contextGL.ext;
@@ -194,7 +194,7 @@ Renderer.prototype.draw = function(batches)
 		gl.clear(gl.COLOR_BUFFER_BIT );
 	}
 	
-	if(!batches.hasBatches())
+	if(!batchManager.hasBatches())
 	{
 		return;
 	}
@@ -216,16 +216,17 @@ Renderer.prototype.draw = function(batches)
 	let currentColorBufferId = null;
 	let currentTextureId = null;
 	let blendEnabled = false;
+	let cullFaceEnabled = false;
+	let inverseCullFace = false;
 	let depthMaskEnabled = true;
 	let unlintSet = false;
 	let billboardSet = false;
 
 	gl.activeTexture(gl.TEXTURE0);
 
-	for(let i = 0; i < batches.batchesKeys.length; i++)
+	for(let i = 0; i < batchManager.batchesKeys.length; i++)
 	{
-		// let b = this.batches[batches.batchesKeys[i]];
-		let b = batches.batches[batches.batchesKeys[i]];
+		let b = batchManager.batches[batchManager.batchesKeys[i]];
 		if(!b.visible)
 		{
 			continue;
@@ -294,13 +295,11 @@ Renderer.prototype.draw = function(batches)
 		mat4.multiply(mv, v, m);
 		mat4.multiply(mvp, p, mv);
 
-		// gl.uniform1f(currentProgram.unlitUniform, 1.0);
-
 		// Normal matrix
 		mat4.invert(normalMatrix, mv);
 		mat4.transpose(normalMatrix, normalMatrix);
 
-		// Transforms
+		// Setup Transform matrices
 		gl.uniformMatrix4fv(currentProgram.projectionUniform, false, p);
 		gl.uniformMatrix4fv(currentProgram.modelViewUniform, false, mv);
 		gl.uniformMatrix4fv(currentProgram.modelViewProjectionUniform, false, mvp);
@@ -363,10 +362,10 @@ Renderer.prototype.draw = function(batches)
 			currentElementBufferId = b.mesh.elementsBufferId;
 		}
 		
-		// if(b.textureName && this.textureMap.hasOwnProperty(b.textureName) )
+
+		// Setup texture
 		if(b.textureName && this.resourceManager.textureMap.hasOwnProperty(b.textureName) )
 		{
-			// let textureId = this.textureMap[b.textureName];
 			let textureId = this.resourceManager.textureMap[b.textureName];
 			
 			if(currentTextureId !== textureId)
@@ -415,6 +414,29 @@ Renderer.prototype.draw = function(batches)
 			blendEnabled = true;
 		}
 
+		// Setup cull face
+		if(b.cullFace && !cullFaceEnabled)
+		{
+			gl.enable(gl.CULL_FACE);
+
+			// gl.cullFace(gl.BACK);
+			cullFaceEnabled = true;
+			if(b.inverseCullFace)
+			{
+				gl.cullFace(gl.FRONT);
+			}
+			else
+			{
+				gl.cullFace(gl.BACK);
+			}
+		}
+		else if(!b.cullFace && cullFaceEnabled)
+		{
+			gl.disable(gl.CULL_FACE);
+			cullFaceEnabled = false;
+		}
+
+		// Setup depth mask
 		if(!b.useDepthMask && !depthMaskEnabled)
 		{
 			gl.depthMask(true);
@@ -439,7 +461,7 @@ Renderer.prototype.draw = function(batches)
 	}
 
 	// Draw Lines
-	if(batches.lines.length > 0)
+	if(batchManager.lines.length > 0)
 	{
 		currentProgram = this.mainProgram;
 		_enableAttribs.call(this, currentProgram.attribs);
@@ -453,9 +475,9 @@ Renderer.prototype.draw = function(batches)
 		gl.uniformMatrix4fv(currentProgram.modelViewUniform, false, mv);
 		gl.uniformMatrix4fv(currentProgram.modelViewProjectionUniform, false, mvp);
 
-		for(let i =0 ; i < batches.lines.length; i++)
+		for(let i =0 ; i < batchManager.lines.length; i++)
 		{
-			let l = batches.lines[i];
+			let l = batchManager.lines[i];
 
 			gl.uniform1i(currentProgram.texSamplerUniform, 0);
 			gl.bindTexture(gl.TEXTURE_2D, this.dummyTexture);
@@ -473,7 +495,7 @@ Renderer.prototype.draw = function(batches)
 	
 
 	// Draw Points
-	if(batches.points.length > 0)
+	if(batchManager.points.length > 0)
 	{
 		currentProgram = this.mainProgram;
 		_enableAttribs.call(this, currentProgram.attribs);
@@ -481,7 +503,7 @@ Renderer.prototype.draw = function(batches)
 
 		gl.uniform1f(currentProgram.unlitUniform, 1.0);
 		
-		for(let i = 0; i < batches.points.length; i++)
+		for(let i = 0; i < batchManager.points.length; i++)
 		{
 			let point = this.points[i];
 
@@ -516,6 +538,16 @@ Renderer.prototype.draw = function(batches)
 	if(!depthMaskEnabled)
 	{
 		gl.depthMask(true);
+	}
+
+	if(cullFaceEnabled)
+	{
+		gl.disable(gl.CULL_FACE);
+	}
+
+	if(inverseCullFace)
+	{
+		gl.cullFace(gl.BACK);
 	}
 
 	gl.bindTexture(gl.TEXTURE_2D, null);
@@ -573,11 +605,6 @@ Renderer.prototype.setDisableClearDepth = function(disable)
 Renderer.prototype.setDisableClearColor = function(disable)
 {
 	this.disableClearColor = disable;
-}
-
-Renderer.prototype.enableCullface = function(cullFace)
-{
-	this.enableCullface = cullFace;
 }
 
 Renderer.prototype.setBackgroundColor = function(r, g, b, a)
@@ -703,14 +730,17 @@ Renderer.prototype.setViewMatrix = function(viewMatrix)
 
 Renderer.prototype.setProjectionMatrix = function(projectionMatrix)
 {
-	// this.projectionMatrix = mat4.clone(projectionMatrix);
 	mat4.copy(this.projectionMatrix, projectionMatrix);
 }
 
 Renderer.prototype.setPerspective = function(fov, ratio, near, far)
 {
-	// mat4.perspective(this.projectionMatrix, 45, canvas.width / canvas.height, 0.1, 100000.0);
 	mat4.perspective(this.projectionMatrix, fov, ratio, near, far);
+}
+
+Renderer.prototype.setOrtho = function(left, right, bottom, top, near, far)
+{
+	mat4.ortho(this.projectionMatrix, left, right, bottom, top, near, far);
 }
 
 Renderer.prototype.setScale = function(newScale)

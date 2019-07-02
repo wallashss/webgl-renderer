@@ -85,7 +85,6 @@ Camera.prototype.getViewMatrix = function()
 	return this.manipulator.getViewMatrix();
 }
 
-
 Camera.prototype.setCamera = function(eye, center, up)
 {
 	let v = mat4.create();

@@ -55,7 +55,7 @@ BatchManager.prototype.addInstances = function(mesh, matrices, colors, options =
 	if(matrices.constructor === WebGLBuffer)
 	{
 		// go on
-		return _addInstance.call(this, mesh, matrices, colors, options);
+		return _addInstances.call(this, mesh, matrices, colors, options);
 	}
 	if((matrices.constructor != Float32Array || colors.constructor != Uint8Array) && 
 		colors.length !== matrices.length)
@@ -69,7 +69,7 @@ BatchManager.prototype.addInstances = function(mesh, matrices, colors, options =
 		console.log("Colors and instances must have same length");
 		return;
 	}
-	return _addInstance.call(this, mesh, matrices, colors, options);
+	return _addInstances.call(this, mesh, matrices, colors, options);
 }
 
 //  TODO: Clear memeory resources
@@ -237,7 +237,7 @@ BatchManager.prototype.addObjectInstances = function(vertices, elements, colors,
 	}
 
 	let mesh = this.uploadMesh(vertices, elements);
-	_addInstance.call(this,mesh, colors, matrices, textureName, unlit, isBillboard);
+	_addInstances.call(this,mesh, colors, matrices, textureName, unlit, isBillboard);
 }
 
 BatchManager.prototype.updateColorBuffer = function(idx, colors)
@@ -423,7 +423,7 @@ function vec4fToVec4b(v)
 	return out;
 }
 
-function _addInstance(mesh, matrices, colors, options)
+function _addInstances(mesh, matrices, colors, options)
 {
 	let gl = this.contextGL.gl;
 	// const outIdx = this.generateId();
@@ -432,10 +432,76 @@ function _addInstance(mesh, matrices, colors, options)
 
 	let isBillboard = options.isBillboard || false;
 	let textureName = options.textureName || null;
+	let inverseCullFace = options.inverseCullFace || false;
+	let cullFace = inverseCullFace || options.cullFace || false;
 	let unlit = options.hasOwnProperty("unlit") ? options.unlit : false;
 
 	let useBlending = false;
 	let useDepthMask = false;
+
+	if(inverseCullFace)
+	{
+		console.log("inverse!!!");
+	}
+
+	let b = {
+			// modelBufferId: modelBufferId,
+			// instanceCount: instanceCount,
+			// colorBufferId: colorBufferId,
+			// offsetMap: offsetMap,
+
+			// isInstance: true,
+			// programId: BatchManager.INSTANCE_PROGRAM_ID,
+
+			cullFace: cullFace,
+			inverseCullFace: inverseCullFace,
+			isBillboard: isBillboard || false,
+			isWireframe: false,
+			mesh: mesh,
+			textureName: textureName,
+			useBlending: useBlending,
+			useDepthMask: useDepthMask,
+			unlit : unlit || false,
+			visible: true
+			}
+
+	// let b = {
+	// 		modelBufferId: modelBufferId,
+	// 		instanceCount: instanceCount,
+	// 		colorBufferId: colorBufferId,
+	// 		offsetMap: offsetMap,
+
+	// 		isInstance: true,
+	// 		programId: BatchManager.INSTANCE_PROGRAM_ID,
+
+	// 		cullFace: cullFace,
+	// 		isBillboard: isBillboard || false,
+	// 		isWireframe: false,
+	// 		mesh: mesh,
+	// 		textureName: textureName,
+	// 		useBlending: useBlending,
+	// 		useDepthMask: useDepthMask,
+	// 		unlit : unlit || false,
+	// 		visible: true
+	// 		}
+			 
+	// let b = {
+	// 		 transform: t,
+	// 		 color: c,
+			 
+	// 		 isInstance: false,
+	// 		 programId: BatchManager.DEFAULT_PROGRAM_ID,
+
+	// 		 cullFace: cullFace,
+	// 		 isBillboard: isBillboard,
+	// 		 isWireframe: false,
+	// 		 mesh: mesh,
+	// 		 textureName: textureName,
+	// 		 useBlending: useBlending,
+	// 		 useDepthMask: useDepthMask,
+	// 		 unlit: unlit,
+	// 		 visible: true,
+	// 		 }
 
 	if(!this.contextGL.hasInstancing)
 	{
@@ -448,16 +514,12 @@ function _addInstance(mesh, matrices, colors, options)
 			let t = mat4.clone(matrices[i]);
 			let c = vec4.clone(colors[i]);
 
-			let b = {mesh,
-				transform: t,
-				color: c,
-				visible: true,
-				isWireframe: false,
-				textureName: textureName,
-				programId: BatchManager.DEFAULT_PROGRAM_ID,
-				unlit: unlit,
-				isBillboard: isBillboard,
-				isInstance: false}
+			b.transform= t;
+			b.color= c;
+
+			b.isInstance = false;
+			b.programId = BatchManager.DEFAULT_PROGRAM_ID;
+			
 			this.batchesKeys.push(idx);
 			this.batches[idx] = b;
 		}
@@ -565,21 +627,16 @@ function _addInstance(mesh, matrices, colors, options)
 			gl.bufferData(gl.ARRAY_BUFFER, colorArray, gl.STATIC_DRAW);
 		}
 
-		let b = {mesh,
-			modelBufferId: modelBufferId,
-			instanceCount: instanceCount,
-			colorBufferId: colorBufferId,
-			textureName: textureName,
-			visible: true,
-			// firstIdx: outIdx,
-			offsetMap: offsetMap,
-			isWireframe: false,
-			useBlending: useBlending,
-			useDepthMask: useDepthMask,
-			unlit : unlit || false,
-			isBillboard: isBillboard || false,
-			programId: BatchManager.INSTANCE_PROGRAM_ID,
-			isInstance: true}
+		b.useBlending = useBlending;
+		b.useDepthMask = useDepthMask;
+		b.modelBufferId = modelBufferId;
+		b.instanceCount = instanceCount;
+		b.colorBufferId = colorBufferId;
+		b.offsetMap = offsetMap;
+
+		b.isInstance = true;
+		b.programId = BatchManager.INSTANCE_PROGRAM_ID;
+		
 	
 		// for(let i = 0 ; i < instanceCount; i++)
 		// {
