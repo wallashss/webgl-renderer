@@ -298,7 +298,7 @@ Camera.prototype.installCamera = function(element, drawcallback)
 		{
 			if(self.manipulatorType === EXAMINE_MANIPULATOR_TYPE)
 			{
-				self.zoom(delta * 0.001);
+				self.zoom(delta * 0.01);
 			}
 			else if(self.manipulatorType === FLY_MANIPULATOR_TYPE)
 			{
@@ -314,7 +314,7 @@ Camera.prototype.installCamera = function(element, drawcallback)
 		
 		element.addEventListener("wheel", function(e)
 		{
-
+			e.preventDefault();
 			let delta = 0.0;
 			if(e.deltaMode == WheelEvent.DOM_DELTA_PIXEL)
 			{
