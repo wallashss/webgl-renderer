@@ -7,6 +7,7 @@ const mat4  = _glMatrix.mat4;
 const Fly = require("./lvrl/fly");
 const Examine = require("./lvrl/examine");
 const Timer = require("./timer");
+const PinchHelper = require("./pinchhelper");
 
 
 function Camera()
@@ -262,7 +263,6 @@ Camera.prototype.installCamera = function(element, drawcallback)
 
 		element.addEventListener("touchstart", (e) =>
 		{
-
 			if(e.touches)
 			{
 				if(e.touches.length === 1)
@@ -276,7 +276,7 @@ Camera.prototype.installCamera = function(element, drawcallback)
 		{
 			if(e.touches)
 			{
-				if(e.touches.length > 0)
+				if(e.touches.length === 1)
 				{
 					moveTouch(e.touches[0]);
 				}
@@ -294,6 +294,23 @@ Camera.prototype.installCamera = function(element, drawcallback)
 			endTouch();
 		}, false);
 		
+		let _scroll = (delta) =>
+		{
+			if(self.manipulatorType === EXAMINE_MANIPULATOR_TYPE)
+			{
+				self.zoom(delta * 0.001);
+			}
+			else if(self.manipulatorType === FLY_MANIPULATOR_TYPE)
+			{
+				let deltaV = delta * self.velocityScale * 0.1;
+				self.velocity += deltaV;
+				if(self.velocity < Math.abs(deltaV))
+				{
+					self.velocity = Math.abs(deltaV);
+				}
+				self.state.velocity = vec3.fromValues(self.velocity, self.velocity, self.velocity);
+			}
+		}
 		
 		element.addEventListener("wheel", function(e)
 		{
@@ -319,22 +336,17 @@ Camera.prototype.installCamera = function(element, drawcallback)
 				}
             }
         
-			
-			if(self.manipulatorType === EXAMINE_MANIPULATOR_TYPE)
-			{
-				self.zoom(delta * 0.001);
-			}
-			else if(self.manipulatorType === FLY_MANIPULATOR_TYPE)
-			{
-				let deltaV = delta * self.velocityScale * 0.1;
-				self.velocity += deltaV;
-				if(self.velocity < Math.abs(deltaV))
-				{
-					self.velocity = Math.abs(deltaV);
-				}
-				self.state.velocity = vec3.fromValues(self.velocity, self.velocity, self.velocity);
-			}
+			_scroll(delta);
 		});
+
+		let pinchHelper = new PinchHelper(element);
+		pinchHelper.setPinchCallback((diff, position, pan) =>
+		{
+			console.log(diff);
+			_scroll(diff*10);
+			// _pan.call(this, pan[0], pan[1]);
+		})
+
 		
 		// WORKAROUND
 		window.addEventListener("keydown", function(e)
