@@ -17,18 +17,23 @@ function Camera()
 	
 	this.manipulator = null;
 	
-	this.mouseState = {x: 0, y: 0, mousePress: false};
+	this.mouseState = {x: 0, y: 0, mousePress: false, index: -1}; // index: button index or touch count
 	this.state = {yawIntensity: 0.0,
 				pitchIntensity: 0.0,
 				pivot: vec3.fromValues(0.0, 0.0, 0.0),
+				pan: vec3.fromValues(0.0, 0.0, 0.0),
+				pickedPoint: vec3.fromValues(0, 0, 0),
 				angularVelocity: 0.0,
 				zoomIntensity: 0.0,
 				maximumZoom: 0.0,
+				screen: [0, 0],
 				velocity: vec3.fromValues(0.0, 0.0, 0.0),
 				forward: 0, backward: 0,
 				left: 0, right: 0,
-				up: 0, down: 0};
+				up: 0, down: 0,
+				isOrtho: false};
 	this.forceDraw = false;
+	this.isPanPrimary = false;
 	
 	this.velocity = 1.0;
 	this.velocityScale = 1.0;
@@ -53,6 +58,8 @@ function Camera()
 	this.state.maximumZoom = 1.0;
 	this.state.velocity = vec3.fromValues(this.velocity, this.velocity, this.velocity);
 
+	this.pickCallback = () =>{};
+
 	this.iddleUpdate = false;
 }
 
@@ -70,9 +77,75 @@ Camera.prototype.rotate = function(yawIntensity, pitchIntensity)
 	this.state.pitchIntensity = pitchIntensity;
 }
 
+Camera.prototype.setPickcallback = function(callback)
+{
+	this.pickCallback = callback;
+}
+
+Camera.prototype.beginPan = function(x, y)
+{
+	this.pickCallback(x, y, (pos, projectionMatrix, screenBounds) =>
+	{
+		if(pos)
+		{
+			// let vp = mat4.create();
+			// mat4.mul(vp, projectionMatrix, this.viewMatrix);
+
+
+			// vec3.transformMat4(pivot, pivot, viewMatrix);
+
+			// vec3.trans
+			// console.log(x, y);
+			// this.manipulator.setPanning(true);
+			this.state.projectionMatrix = projectionMatrix;
+			this.state.screen[0] = screenBounds.width;
+			this.state.screen[1] = screenBounds.height;
+
+			
+			vec3.set(this.state.pickedPoint, pos[0], pos[1], pos[2] || 0);
+			// console.log(pos);
+		}
+		
+	});
+}
+
+// Camera.prototype.pan = function(x, y)
+// {
+// 	this.pickCallback(x, y, (pos, projectionMatrix, bounds) =>
+// 	{
+// 		if(pos)
+// 		{
+// 			// let vp = mat4.create();
+// 			// mat4.mul(vp, projectionMatrix, this.viewMatrix);
+
+
+// 			// vec3.transformMat4(pivot, pivot, viewMatrix);
+
+// 			// vec3.trans
+// 			// console.log(x, y);
+// 			this.manipulator.setPanning(true);
+// 			this.state.projectionMatrix = projectionMatrix;
+// 			this.state.screen = {width: bounds.width, height: bounds.height};
+// 			vec3.set(this.state.pickedPoint, pos[0], pos[1], pos[2] || 0);
+// 			// console.log(pos);
+// 		}
+		
+// 	});
+// }
+
+Camera.prototype.setPanAsPrimary = function(isPrimary = true)
+{
+	this.isPanPrimary = isPrimary;
+}
+
 Camera.prototype.zoom = function(intensity)
 {
 	this.state.zoomIntensity = intensity;
+}
+
+Camera.prototype.setOrtho = function(isOrtho = true)
+{
+	this.state.isOrtho = isOrtho;
 }
 
 Camera.prototype.setViewMatrix = function(viewMatrix, forceDraw = true)
@@ -86,6 +159,11 @@ Camera.prototype.getViewMatrix = function()
 	return this.manipulator.getViewMatrix();
 }
 
+Camera.prototype.setPivot = function(pivot)
+{
+	this.state.pivot = vec3.clone(pivot);
+}
+
 Camera.prototype.setCamera = function(eye, center, up)
 {
 	let v = mat4.create();
@@ -96,6 +174,7 @@ Camera.prototype.setCamera = function(eye, center, up)
 	this.state.worldUp = vec3.clone(up);
 	
 	this.forceDraw = true;
+	return v;
 }
 
 Camera.prototype.setFlyMode = function()
@@ -199,40 +278,54 @@ Camera.prototype.reset = function()
 					 
 Camera.prototype.installCamera = function(element, drawcallback)
 {
-	let self = this;
-
-	let startTouch = (e) =>
+	let startTouch = (e, index = 0) =>
 	{
 		mouseState.mousePress = true;
 		mouseState.x = e.clientX;
 		mouseState.y = e.clientY;
+		mouseState.index = index;
+
+		if(this.isPanPrimary || this.mouseState.index === 2)
+		{
+			this.beginPan(e.clientX, e.clientY);
+			mouseState.x = e.clientX;
+			mouseState.y = e.clientY;
+		}
 	}
 
 	let moveTouch = (e) =>
 	{
-		// mouseState.mousePress = true;
-		// mouseState.x = e.clientX;
-		// mouseState.y = e.clientY;
-
-		if (self.mouseState.mousePress)
+		if(this.mouseState.mousePress && (this.isPanPrimary || this.mouseState.index === 2))
 		{
-			// self.rotate(-mouseState.x + e.clientX, -mouseState.y + e.clientY);
-			// mouseState.x = e.clientX;
-			// mouseState.y = e.clientY;
-			self.rotate(-mouseState.x + e.clientX, -mouseState.y + e.clientY);
+			// e.preventDefault();
+
+			let sx = mouseState.x / this.state.screen[0];
+			let sy = mouseState.y / this.state.screen[1];
+
+			let ex = e.clientX / this.state.screen[0];
+			let ey = e.clientY / this.state.screen[1];
+
+			// vec3.set(this.state.pan, mouseState.x - e.clientX, -mouseState.y + e.clientY, 0);
+			vec3.set(this.state.pan, sx - ex, -sy + ey, 0);
+			// console.log(e.clientX / this.state.screen[0], e.clientY / this.state.screen[1]);
+			// console.log(this.state.pan);
 			mouseState.x = e.clientX;
 			mouseState.y = e.clientY;
 		}
-
+		else if (this.mouseState.mousePress && this.mouseState.index === 0)
+		{
+			this.rotate(-mouseState.x + e.clientX, -mouseState.y + e.clientY);
+			mouseState.x = e.clientX;
+			mouseState.y = e.clientY;
+		}
 	}
 
 	let endTouch = (e) =>
 	{
-		// mouseState.mousePress = true;
-		// mouseState.x = e.clientX;
-		// mouseState.y = e.clientY;
 		mouseState.mousePress = false;
-		// endTouch();
+		mouseState.index = -1;
+		
+		// e.preventDefault();
 	}
 	
 	let mouseState = this.mouseState;
@@ -242,18 +335,38 @@ Camera.prototype.installCamera = function(element, drawcallback)
 		{
 			if(e.target === element)
 			{
-				// mouseState.mousePress = true;
-				// mouseState.x = e.clientX;
-				// mouseState.y = e.clientY;
-				startTouch(e);
+				startTouch(e, e.button);
 			}
+			// e.preventDefault();
 		});
 		
 		window.addEventListener("mouseup", (e) =>
 		{
-			// mouseState.mousePress = false;
 			endTouch(e);
 		});
+
+		window.addEventListener("mouseout", (e) =>
+		{
+			endTouch(e);
+		});
+
+		// Disable context menu on mac os x
+		// Ctrl key + click set to context menu... and we do not want it now
+		if(navigator && navigator.platform == "MacIntel")
+		{
+			window.addEventListener('contextmenu', (e) =>
+			{
+				if(e.target === element)
+				{
+					e.preventDefault();
+				}
+			});
+
+			element.addEventListener('contextmenu', (e) =>
+			{
+				e.preventDefault();
+			});
+		}
 
 		
 		window.addEventListener("mousemove", (e) =>
@@ -296,23 +409,23 @@ Camera.prototype.installCamera = function(element, drawcallback)
 		
 		let _scroll = (delta) =>
 		{
-			if(self.manipulatorType === EXAMINE_MANIPULATOR_TYPE)
+			if(this.manipulatorType === EXAMINE_MANIPULATOR_TYPE)
 			{
-				self.zoom(delta * 0.01);
+				this.zoom(delta * 0.005);
 			}
-			else if(self.manipulatorType === FLY_MANIPULATOR_TYPE)
+			else if(this.manipulatorType === FLY_MANIPULATOR_TYPE)
 			{
-				let deltaV = delta * self.velocityScale * 0.1;
-				self.velocity += deltaV;
-				if(self.velocity < Math.abs(deltaV))
+				let deltaV = delta * this.velocityScale * 0.1;
+				this.velocity += deltaV;
+				if(this.velocity < Math.abs(deltaV))
 				{
-					self.velocity = Math.abs(deltaV);
+					this.velocity = Math.abs(deltaV);
 				}
-				self.state.velocity = vec3.fromValues(self.velocity, self.velocity, self.velocity);
+				this.state.velocity = vec3.fromValues(this.velocity, this.velocity, this.velocity);
 			}
 		}
 		
-		element.addEventListener("wheel", function(e)
+		element.addEventListener("wheel", (e) =>
 		{
 			e.preventDefault();
 			let delta = 0.0;
@@ -342,14 +455,12 @@ Camera.prototype.installCamera = function(element, drawcallback)
 		let pinchHelper = new PinchHelper(element);
 		pinchHelper.setPinchCallback((diff, position, pan) =>
 		{
-			console.log(diff);
 			_scroll(diff*10);
-			// _pan.call(this, pan[0], pan[1]);
 		})
 
 		
 		// WORKAROUND
-		window.addEventListener("keydown", function(e)
+		window.addEventListener("keydown", (e) =>
 		{
 			if(document.activeElement)
 			{
@@ -362,34 +473,34 @@ Camera.prototype.installCamera = function(element, drawcallback)
 			}
 			if(e.shiftKey && (e.key === "W" || e.key === "w" || e.key === "ArrowUp"))
 			{
-				self.state.up = 1.0;
+				this.state.up = 1.0;
 			}
 			else if(e.shiftKey && (e.key === "S" || e.key === "s" || e.key === "ArrowDown"))
 			{
-				self.state.down = 1.0;
+				this.state.down = 1.0;
 			}
 			else if(e.key === "W" || e.key === "w" || e.key === "ArrowUp")
 			{
-				self.state.forward = 1.0;
+				this.state.forward = 1.0;
 			}
 			else if(e.key === "S" || e.key === "s" || e.key === "ArrowDown")
 			{
-				self.state.backward = 1.0;
+				this.state.backward = 1.0;
 			}
 			else if(e.key === "A" || e.key === "a" || e.key === "ArrowLeft")
 			{
-				self.state.left = 1.0;
+				this.state.left = 1.0;
 			}
 			else if(e.key === "D" || e.key === "d" || e.key === "ArrowRight")
 			{
-				self.state.right = 1.0;
+				this.state.right = 1.0;
 			}
 			
 		});
 		
 		element.addEventListener("blur", () =>
 		{	
-			self.reset();
+			this.reset();
 		});
 
 		window.addEventListener("keyup", (e) =>
@@ -400,51 +511,50 @@ Camera.prototype.installCamera = function(element, drawcallback)
 				   document.activeElement.tagName === "INPUT" || 
 				   document.activeElement.tagName === "SELECT")
 				{
-					self.reset();
+					this.reset();
 					return;
 				}
 			}
 			if(e.key === "W" || e.key === "w" || e.key === "ArrowUp")
 			{
-				self.state.up = 0.0;
-				self.state.forward = 0.0;
+				this.state.up = 0.0;
+				this.state.forward = 0.0;
 			}
 			else if(e.key === "S" || e.key === "s" || e.key === "ArrowDown")
 			{
-				self.state.backward = 0.0;
-				self.state.down = 0.0;
+				this.state.backward = 0.0;
+				this.state.down = 0.0;
 			}
 			else if(e.key === "A" || e.key === "a" || e.key === "ArrowLeft")
 			{
-				self.state.left = 0.0;
+				this.state.left = 0.0;
 			}
 			else if(e.key === "D" || e.key === "d" || e.key === "ArrowRight")
 			{
-				self.state.right = 0.0;
+				this.state.right = 0.0;
 			}
 
-			self.onKey(e);
+			this.onKey(e);
 		});
 		
 	}
 	
 	
-	self.onProcessData(drawcallback);
+	this.onProcessData(drawcallback);
 }
 
 Camera.prototype.onProcessData = function(drawcallback = ()=>{})
 {
 	let timer = new Timer();
-	let self = this;
-	let frameCallback = function()
+	let frameCallback = () =>
 	{
 		let dt = timer.elapsedTime();
 		// console.log("camera update");
-		if(self.manipulator.update(dt, self.state) || self.iddleUpdate || self.forceDraw)
+		if(this.manipulator.update(dt, this.state) || this.iddleUpdate || this.forceDraw)
 		{
 			// console.log("after camera update");
-			drawcallback(self.manipulator.getViewMatrix(), dt);
-			self.forceDraw = false;
+			drawcallback(this.manipulator.getViewMatrix(), dt);
+			this.forceDraw = false;
 		}
 		window.requestAnimationFrame(frameCallback);
 		timer.restart();
@@ -452,7 +562,7 @@ Camera.prototype.onProcessData = function(drawcallback = ()=>{})
 	
 	if(this.drawcallback)
 	{
-		drawcallback(self.manipulator.getViewMatrix(), 0);
+		drawcallback(this.manipulator.getViewMatrix(), 0);
 	}
 	
 	frameCallback();
