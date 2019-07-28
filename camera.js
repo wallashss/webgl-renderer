@@ -6,6 +6,7 @@ const mat4  = _glMatrix.mat4;
 
 const Fly = require("./lvrl/fly");
 const Examine = require("./lvrl/examine");
+const OrthoExamine = require("./lvrl/orthoexamine");
 const Timer = require("./timer");
 const PinchHelper = require("./pinchhelper");
 
@@ -14,6 +15,7 @@ function Camera()
 {
 	this.examineManipulator = new Examine();
 	this.flyManipulator = new Fly();
+	this.orthoManipulator = new OrthoExamine();
 	
 	this.manipulator = null;
 	
@@ -27,11 +29,17 @@ function Camera()
 				zoomIntensity: 0.0,
 				maximumZoom: 0.0,
 				screen: [0, 0],
+				scale: vec3.fromValues[1, 1, 1],
 				velocity: vec3.fromValues(0.0, 0.0, 0.0),
 				forward: 0, backward: 0,
 				left: 0, right: 0,
 				up: 0, down: 0,
 				isOrtho: false};
+
+	this.near = 1e-1;
+	this.far = 1e5;
+	this.fov = 45;
+
 	this.forceDraw = false;
 	this.isPanPrimary = false;
 	
@@ -44,6 +52,8 @@ function Camera()
 	
 	
 	this.setExamineMode();
+
+	// Init view matrix
 	let eye = vec3.fromValues(0, 0, -5);
 	let center = vec3.fromValues(0, 0, 0);
 	let up = vec3.fromValues(0, 1, 0);
@@ -51,24 +61,27 @@ function Camera()
 	let v = mat4.create();
 	mat4.lookAt(v, eye, center, up);
 	this.manipulator.setViewMatrix(v);
-	
+
+
 	this.state.pivot = vec3.clone(center);
 	this.state.worldUp = vec3.clone(up);
 	this.state.angularVelocity = 30.0;
 	this.state.maximumZoom = 1.0;
 	this.state.velocity = vec3.fromValues(this.velocity, this.velocity, this.velocity);
 
+	// Init projection matrix
+	let m = mat4.create();
+	mat4.perspective(m, this.fov, 1, this.near, this.far);
+	this.manipulator.setProjectionMatrix(m);
+
 	this.pickCallback = () =>{};
 
 	this.iddleUpdate = false;
 }
 
-
 Camera.EXAMINE_MANIPULATOR_TYPE = 0;
 Camera.FLY_MANIPULATOR_TYPE = 1;
-
-const EXAMINE_MANIPULATOR_TYPE = Camera.EXAMINE_MANIPULATOR_TYPE;
-const FLY_MANIPULATOR_TYPE = Camera.FLY_MANIPULATOR_TYPE;	
+Camera.ORTHO_MANIPULATOR_TYPE = 2;
 
 
 Camera.prototype.rotate = function(yawIntensity, pitchIntensity)
@@ -143,9 +156,46 @@ Camera.prototype.zoom = function(intensity)
 	this.state.zoomIntensity = intensity;
 }
 
-Camera.prototype.setOrtho = function(isOrtho = true)
+Camera.prototype.setOrthoMode = function(isOrtho = true)
 {
-	this.state.isOrtho = isOrtho;
+	// this.state.isOrtho = isOrtho;
+	this.manipulatorType = Camera.ORTHO_MANIPULATOR_TYPE;
+
+	if(this.manipulator)
+	{
+		let projectionMatrix = this.manipulator.getProjectionMatrix();
+		this.orthoManipulator.setProjectionMatrix(projectionMatrix);
+	}
+	this.manipulator.near = this.near;
+	this.manipulator.far = this.far;
+	this.manipulator = this.orthoManipulator;
+	
+	this.isPanPrimary = true;
+}
+
+Camera.prototype.setFlyMode = function()
+{
+	this.manipulatorType = Camera.FLY_MANIPULATOR_TYPE;
+
+	if(this.manipulator)
+	{
+		let viewMatrix = this.manipulator.getViewMatrix();
+		this.flyManipulator.setViewMatrix(viewMatrix);
+		this.flyManipulator.applyRestrictions(this.state.worldUp);
+	}
+	this.manipulator = this.flyManipulator;
+}
+
+Camera.prototype.setExamineMode = function()
+{
+	this.manipulatorType = Camera.EXAMINE_MANIPULATOR_TYPE;
+	
+	if(this.manipulator)
+	{
+		let viewMatrix = this.manipulator.getViewMatrix();
+		this.examineManipulator.setViewMatrix(viewMatrix);
+	}
+	this.manipulator = this.examineManipulator;
 }
 
 Camera.prototype.setViewMatrix = function(viewMatrix, forceDraw = true)
@@ -157,6 +207,17 @@ Camera.prototype.setViewMatrix = function(viewMatrix, forceDraw = true)
 Camera.prototype.getViewMatrix = function()
 {
 	return this.manipulator.getViewMatrix();
+}
+
+Camera.prototype.setProjectionMatrix = function(projectionMatrix, forceDraw = true)
+{
+	this.forceDraw = forceDraw;
+	this.manipulator.setProjectionMatrix(projectionMatrix);
+}
+
+Camera.prototype.getProjectionMatrix = function()
+{
+	return this.manipulator.getProjectionMatrix();
 }
 
 Camera.prototype.setPivot = function(pivot)
@@ -177,36 +238,11 @@ Camera.prototype.setCamera = function(eye, center, up)
 	return v;
 }
 
-Camera.prototype.setFlyMode = function()
-{
-	this.manipulatorType = FLY_MANIPULATOR_TYPE;
-
-	if(this.manipulator)
-	{
-		let viewMatrix = this.manipulator.getViewMatrix();
-		this.flyManipulator.setViewMatrix(viewMatrix);
-		this.flyManipulator.applyRestrictions(this.state.worldUp);
-	}
-	this.manipulator = this.flyManipulator;
-	
-}
-
 Camera.prototype.setOnKey = function(callback = () =>{})
 {
 	this.onKey = callback;
 }
 
-Camera.prototype.setExamineMode = function()
-{
-	this.manipulatorType = EXAMINE_MANIPULATOR_TYPE;
-	
-	if(this.manipulator)
-	{
-		let viewMatrix = this.manipulator.getViewMatrix();
-		this.examineManipulator.setViewMatrix(viewMatrix);
-	}
-	this.manipulator = this.examineManipulator;
-}
 
 Camera.prototype.moveFoward = function(v)
 {
@@ -276,7 +312,7 @@ Camera.prototype.reset = function()
 	this.state.backward = 0.0;
 }
 					 
-Camera.prototype.installCamera = function(element, drawcallback)
+Camera.prototype.installCamera = function(element, viewCallback, projectionCallback, resizeCallback)
 {
 	let startTouch = (e, index = 0) =>
 	{
@@ -297,8 +333,6 @@ Camera.prototype.installCamera = function(element, drawcallback)
 	{
 		if(this.mouseState.mousePress && (this.isPanPrimary || this.mouseState.index === 2))
 		{
-			// e.preventDefault();
-
 			let sx = mouseState.x / this.state.screen[0];
 			let sy = mouseState.y / this.state.screen[1];
 
@@ -306,6 +340,7 @@ Camera.prototype.installCamera = function(element, drawcallback)
 			let ey = e.clientY / this.state.screen[1];
 
 			// vec3.set(this.state.pan, mouseState.x - e.clientX, -mouseState.y + e.clientY, 0);
+
 			vec3.set(this.state.pan, sx - ex, -sy + ey, 0);
 			// console.log(e.clientX / this.state.screen[0], e.clientY / this.state.screen[1]);
 			// console.log(this.state.pan);
@@ -323,9 +358,7 @@ Camera.prototype.installCamera = function(element, drawcallback)
 	let endTouch = (e) =>
 	{
 		mouseState.mousePress = false;
-		mouseState.index = -1;
-		
-		// e.preventDefault();
+		mouseState.index = -1;		
 	}
 	
 	let mouseState = this.mouseState;
@@ -409,11 +442,8 @@ Camera.prototype.installCamera = function(element, drawcallback)
 		
 		let _scroll = (delta) =>
 		{
-			if(this.manipulatorType === EXAMINE_MANIPULATOR_TYPE)
-			{
-				this.zoom(delta * 0.005);
-			}
-			else if(this.manipulatorType === FLY_MANIPULATOR_TYPE)
+			
+			if(this.manipulatorType === Camera.FLY_MANIPULATOR_TYPE)
 			{
 				let deltaV = delta * this.velocityScale * 0.1;
 				this.velocity += deltaV;
@@ -422,6 +452,10 @@ Camera.prototype.installCamera = function(element, drawcallback)
 					this.velocity = Math.abs(deltaV);
 				}
 				this.state.velocity = vec3.fromValues(this.velocity, this.velocity, this.velocity);
+			}
+			else 
+			{
+				this.zoom(delta * 0.005);
 			}
 		}
 		
@@ -536,37 +570,64 @@ Camera.prototype.installCamera = function(element, drawcallback)
 
 			this.onKey(e);
 		});
+
+		let resize = () =>
+		{
+			let bounds = element.getBoundingClientRect();
+			let w = bounds.width;
+			let h = bounds.height;
+
+			if(this.manipulatorType !== Camera.ORTHO_MANIPULATOR_TYPE)
+			{
+				let m = mat4.create();
+				mat4.perspective(m, this.fov, w / h, this.near, this.far);
+				this.manipulator.setProjectionMatrix(m);
+			}
+			else
+			{
+
+			}
+
+			resizeCallback(w, h);
+			this.forceDraw = true;
+		}
+
+		resize();
+		window.addEventListener("resize", (e)=>
+		{
+			resize();
+		});
 		
 	}
 	
-	
-	this.onProcessData(drawcallback);
+	_startProccesData.call(this, viewCallback, projectionCallback);
 }
 
-Camera.prototype.onProcessData = function(drawcallback = ()=>{})
+function _startProccesData(viewCallback = () => {}, projectionCallback = () => {})
 {
 	let timer = new Timer();
 	let frameCallback = () =>
 	{
 		let dt = timer.elapsedTime();
-		// console.log("camera update");
-		if(this.manipulator.update(dt, this.state) || this.iddleUpdate || this.forceDraw)
+		if(this.manipulator.updateView(dt, this.state) || this.iddleUpdate || this.forceDraw)
 		{
-			// console.log("after camera update");
-			drawcallback(this.manipulator.getViewMatrix(), dt);
-			this.forceDraw = false;
+			viewCallback(this.manipulator.getViewMatrix(), dt);
 		}
+
+		if(this.manipulator.updateProjection(dt, this.state) || this.iddleUpdate || this.forceDraw)
+		{
+			projectionCallback(this.manipulator.getProjectionMatrix(), dt);
+		}
+
+		this.forceDraw = false;
+
 		window.requestAnimationFrame(frameCallback);
 		timer.restart();
 	};
 	
-	if(this.drawcallback)
-	{
-		drawcallback(this.manipulator.getViewMatrix(), 0);
-	}
-	
 	frameCallback();
 }
+
 
 Camera.prototype.setVelocity = function(newVelocity)
 {
