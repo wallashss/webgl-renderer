@@ -2,6 +2,8 @@
 
 const _glMatrix = require("gl-matrix");
 const vec3  = _glMatrix.vec3;
+const vec2  = _glMatrix.vec2;
+const vec4  = _glMatrix.vec4;
 const mat4  = _glMatrix.mat4;
 
 const Fly = require("./lvrl/fly");
@@ -25,6 +27,7 @@ function Camera()
 				pivot: vec3.fromValues(0.0, 0.0, 0.0),
 				pan: vec3.fromValues(0.0, 0.0, 0.0),
 				pickedPoint: vec3.fromValues(0, 0, 0),
+				pickedScreenPoint: vec2.fromValues(0, 0),
 				angularVelocity: 0.0,
 				zoomIntensity: 0.0,
 				maximumZoom: 0.0,
@@ -115,7 +118,23 @@ Camera.prototype.beginPan = function(x, y)
 			this.state.screen[1] = screenBounds.height;
 
 			
+
+			
+			vec2.set(this.state.pickedScreenPoint, );
 			vec3.set(this.state.pickedPoint, pos[0], pos[1], pos[2] || 0);
+			let vp = mat4.create();
+			let v = vec4.fromValues(pos[0], pos[1], pos[2], 1);
+			mat4.mul(vp, this.manipulator.getProjectionMatrix(), this.manipulator.getViewMatrix());
+			
+			vec4.transformMat4(v, v, vp);
+			
+			console.log(x, y);
+			console.log(x / screenBounds.width, y / screenBounds.height);
+			console.log((x / screenBounds.width) * 2 - 1, (y / screenBounds.height) * 2 - 1);
+			console.log(v[0], v[1], v[2], v[3]);
+			console.log(v[0] / v[3], v[1] / v[3], v[2] / v[3]);
+			console.log("======");
+			// console.log(this.state.pickedPoint);
 			// console.log(pos);
 		}
 		
@@ -333,11 +352,11 @@ Camera.prototype.installCamera = function(element, viewCallback, projectionCallb
 	{
 		if(this.mouseState.mousePress && (this.isPanPrimary || this.mouseState.index === 2))
 		{
-			let sx = mouseState.x / this.state.screen[0];
-			let sy = mouseState.y / this.state.screen[1];
+			let sx = (mouseState.x / this.state.screen[0]) * 2 - 1;
+			let sy = (mouseState.y / this.state.screen[1]) * 2 - 1;
 
-			let ex = e.clientX / this.state.screen[0];
-			let ey = e.clientY / this.state.screen[1];
+			let ex = (e.clientX / this.state.screen[0]) * 2 - 1;
+			let ey = (e.clientY / this.state.screen[1]) * 2 - 1;
 
 			// vec3.set(this.state.pan, mouseState.x - e.clientX, -mouseState.y + e.clientY, 0);
 

@@ -91,60 +91,57 @@ OrthoExamine.prototype.updateProjection = function(dt, state)
 
 			state.zoomIntensity = 0;
 		}
-		if(!glMatrix.equals(state.pan[0], 0.0) ||  !glMatrix.equals(state.pan[1], 0.0) )
+
+		let hasPan = !glMatrix.equals(state.pan[0], 0.0) ||  !glMatrix.equals(state.pan[1], 0.0);
+		if(hasPan)
 		{
 			let p = vec4.fromValues(state.pan[0] * 4, state.pan[1] * 4, 1, 1);
 
 			vec4.transformMat4(p, p, this.invProjection);
 
-			// let dx = state.pan[0] * (this.right - this.left);
-			// let dy = state.pan[1] * (this.top - this.bottom);
-			let dx = p[0];
-			let dy = p[1];
 
-			console.log(p);
 
-			if(this.bounds.right + dx < this.right && 
-			   this.bounds.left + dx > this.left)
+			let pan = this.getPanOffset(state);	
+
+			console.log(pan);
+
+			let dx = -pan[0];
+			let dy = -pan[1];
+			// let dx = p[0];
+			// let dy = p[1];
+
+			// if(this.bounds.right + dx < this.right && 
+			//    this.bounds.left + dx > this.left)
 			{
 				this.bounds.left += dx;
 				this.bounds.right += dx;
 			}
-			else if(this.bounds.right + dx > this.right)
-			{
-				this.bounds.left += this.right - this.bounds.right;
-				this.bounds.right = this.right;
-			}
-			else if(this.bounds.left + dx < this.left)
-			{
-				this.bounds.right += this.left - this.bounds.left;
-				this.bounds.left = this.left;
-			}
+			// else if(this.bounds.right + dx > this.right)
+			// {
+			// 	this.bounds.left += this.right - this.bounds.right;
+			// 	this.bounds.right = this.right;
+			// }
+			// else if(this.bounds.left + dx < this.left)
+			// {
+			// 	this.bounds.right += this.left - this.bounds.left;
+			// 	this.bounds.left = this.left;
+			// }
 
 
-			if(this.bounds.top + dy < this.top && 
-			   this.bounds.bottom + dy > this.bottom)
+			// if(this.bounds.top + dy < this.top && 
+			//    this.bounds.bottom + dy > this.bottom)
 			{
 				this.bounds.top += dy;
 				this.bounds.bottom += dy;
 			}
-			else if(this.bounds.top + dy > this.top)
-			{
-				this.bounds.bottom += this.top - this.bounds.top;
-				this.bounds.top = this.top;
-			}
-			else if(this.bounds.bottom + dy < this.bottom)
-			{
-				this.bounds.top += this.bottom - this.bounds.bottom;
-				this.bounds.bottom = this.bottom;
-			}
-
-			// if(this.bounds.top > this.top)
+			// else if(this.bounds.top + dy > this.top)
 			// {
+			// 	this.bounds.bottom += this.top - this.bounds.top;
 			// 	this.bounds.top = this.top;
 			// }
-			// else if(this.bounds.bottom < this.bottom)
+			// else if(this.bounds.bottom + dy < this.bottom)
 			// {
+			// 	this.bounds.top += this.bottom - this.bounds.bottom;
 			// 	this.bounds.bottom = this.bottom;
 			// }
 

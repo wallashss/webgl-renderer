@@ -27,22 +27,14 @@ Examine.prototype.updateView = function(dt, state)
 	{
 		let viewMatrix = mat4.clone(this.viewMatrix);
 
-		// if(_isPanning)
-		// {
-		//     viewMatrix = mat4.clone(_initViewMatrix);
-		// }
-
 		let hasZoom = !glMatrix.equals(state.zoomIntensity, 0.0);
 
 		// Scale (zoom) in  orthographic
 		if(hasZoom && state.isOrtho)
 		{
 			
-
 			let s = 1;
 			s -= state.zoomIntensity;
-
-			let translation = mat4.create();
 			
 			let pivot = vec3.fromValues(state.pivot[0], state.pivot[1], state.pivot[2]);
 			vec3.transformMat4(pivot, pivot, viewMatrix);
@@ -61,14 +53,6 @@ Examine.prototype.updateView = function(dt, state)
 			mat4.multiply(viewMatrix, scale, viewMatrix);
 			mat4.multiply(viewMatrix, tPivot, viewMatrix);
 
-			// mat4.fromTranslation(translation, pivot);
-
-			// mat4.multiply(viewMatrix, translation, viewMatrix);
-			// mat4.multiply(viewMatrix, scale, viewMatrix);
-
-			// vec3.set(pivot, -pivot[0], -pivot[1], -pivot[2]);
-			// mat4.fromTranslation(translation, pivot);
-			// mat4.multiply(viewMatrix, translation, viewMatrix);
 			state.zoomIntensity = 0.0;
 		}
 
@@ -163,114 +147,44 @@ Examine.prototype.updateView = function(dt, state)
 
 		if(!glMatrix.equals(state.pan[0], 0.0) ||  !glMatrix.equals(state.pan[1], 0.0) )
 		{
+			// let vp = mat4.create();
+			// mat4.mul(vp, state.projectionMatrix, this.viewMatrix);
 
-			// mat4.translate(viewMatrix, viewMatrix, state.pan);
-			// vec3.set(state.pan, 0, 0, 0);
-			// _isPanning = false;
-			// THis is a future pan implementation
+			// let projectedPoint = vec4.create();
 
-			let vp = mat4.create();
-			mat4.mul(vp, state.projectionMatrix, this.viewMatrix);
+			// vec4.transformMat4(projectedPoint, 
+			// 					vec4.fromValues(state.pickedPoint[0], state.pickedPoint[1], state.pickedPoint[2], 1), 
+			// 					vp);
 
-			let pickedPoint = vec3.create();
-			let projectedPoint = vec4.create();
+			// let vpx = state.pan[0];
+			// let vpy = state.pan[1];
 
-			vec4.transformMat4(projectedPoint, 
-								vec4.fromValues(state.pickedPoint[0], state.pickedPoint[1], state.pickedPoint[2], 1), 
-								vp);
+			// let inVP = mat4.create();
+			// mat4.invert(inVP, vp);
 
-			// projectedPoint[0] = projectedPoint[0] / projectedPoint[3];
-			// projectedPoint[1] = projectedPoint[1] / projectedPoint[3];
-			// projectedPoint[2] = projectedPoint[2] // projectedPoint[3];
-			// projectedPoint[2] = projectedPoint[2]
-			// projectedPoint.y = projectedPoint.y / projectedPoint.w;
+			// let rp = vec4.create();
 
-			
-			// let vpx = state.pan[0] / state.screen[0];
-			// let vpy = state.pan[1] / state.screen[1];
-			let vpx = state.pan[0];
-			let vpy = state.pan[1];
+			// rp[0] = ((projectedPoint[0] / projectedPoint[3]) + vpx) * projectedPoint[3];
+			// rp[1] = ((projectedPoint[1] / projectedPoint[3]) + vpy) * projectedPoint[3];
+			// rp[2] = projectedPoint[2];
+			// rp[3] = projectedPoint[3];
 
 
-			// console.log(vpx, vpy);
+			// vec4.transformMat4(rp, rp, inVP);
 
-			vpx = vpx * 4;
-			vpy = vpy * 4;
+			// let t = vec3.fromValues(state.pickedPoint[0] - rp[0], 
+			// 						state.pickedPoint[1] - rp[1], 
+			// 						state.pickedPoint[2] - rp[2]);
+			let t = this.getPanOffset(state);
 
+			let tm = mat4.create();
+			mat4.fromTranslation(tm, t);
+			mat4.mul(viewMatrix, viewMatrix, tm);
 
-			let inVP = mat4.create();
-			mat4.invert(inVP, vp);
-
-			let rp = vec4.create();
-			rp[0] = ((projectedPoint[0] / projectedPoint[3]) + vpx) * projectedPoint[3];
-			rp[1] = ((projectedPoint[1] / projectedPoint[3]) + vpy) * projectedPoint[3];
-			rp[2] = projectedPoint[2];
-			rp[3] = projectedPoint[3];
-
-
-			vec4.transformMat4(rp, rp, inVP);
-
-			// 
-			let t = vec3.fromValues(state.pickedPoint[0] - rp[0], 
-									state.pickedPoint[1] - rp[1], 
-									state.pickedPoint[2] - rp[2]);
-
-
-			// vec4.mul(viewMatrix,);
-			mat4.translate(viewMatrix, viewMatrix, t);
-
-			// console.log("---");
-			// console.log(projectedPoint);
-			// console.log(state.pickedPoint);
-			// console.log(rp);
-			// console.log(pickedPoint, vpx, vpy);
-			// console.log("---");
+			vec3.add(state.pivot, state.pivot, t);
 
 			state.pan[0] = 0;
 			state.pan[1] = 0;
-
-			// _isPanning = false;
-			
-			// glm::dmat4 projectionMatrix = glm::make_mat4(_state->projectionMatrix);
-//                 glm::dmat4 worldToScreenMatrix = projectionMatrix * viewMatrix;
-// 
-//                 glm::dvec4 pickedPoint = glm::dvec4(_pickedPoint[0], _pickedPoint[1], _pickedPoint[2], 1.0);
-//                 glm::dvec4 projectedPoint = worldToScreenMatrix * pickedPoint;
-// 
-// 				projectedPoint.x = projectedPoint.x / projectedPoint.w;
-// 				projectedPoint.y = projectedPoint.y / projectedPoint.w;
-// 
-// 				projectedPoint.x = ((projectedPoint.x + 1.0) / 2.0) * _state->viewport[2] + _state->viewport[0];
-// 				projectedPoint.y = ((projectedPoint.y + 1.0) / 2.0) * _state->viewport[3] + _state->viewport[1];
-// 
-// 				projectedPoint.x = projectedPoint.x + _dx;
-// 				projectedPoint.y = projectedPoint.y + _dy;
-// 
-// 				projectedPoint.x = (projectedPoint.x - _state->viewport[0]) * 2.0 / _state->viewport[2] - 1.0;
-// 				projectedPoint.y = (projectedPoint.y - _state->viewport[1]) * 2.0 / _state->viewport[3] - 1.0;
-// 
-// 				projectedPoint.x = projectedPoint.x * projectedPoint.w;
-// 				projectedPoint.y = projectedPoint.y * projectedPoint.w;
-// 
-// 
-//                 glm::dmat4 screenToWorldMatrix = glm::inverse(worldToScreenMatrix);
-//                 glm::dvec4 unprojectedPoint = screenToWorldMatrix * projectedPoint;
-// 
-//                 glm::dvec4 panTranslation = unprojectedPoint - pickedPoint;
-// 
-//                 glm::dmat4 translation = glm::translate(glm::dmat4(), glm::dvec3(panTranslation));
-// 
-// 				viewMatrix = viewMatrix * translation;
-// 
-//                 glm::dvec4 pivot = glm::dvec4(_initPivot[0], _initPivot[1], _initPivot[2], 1.0);
-//                 glm::dvec4 projectedPivot = worldToScreenMatrix * pivot;
-//                 worldToScreenMatrix = projectionMatrix * viewMatrix;
-//                 screenToWorldMatrix = glm::inverse(worldToScreenMatrix);
-//                 glm::dvec4 newPivot = screenToWorldMatrix * projectedPivot;
-// 
-// 				_state->pivot[0] = newPivot[0];
-// 				_state->pivot[1] = newPivot[1];
-// 				_state->pivot[2] = newPivot[2];
 		}
 		this.viewMatrix = mat4.clone(viewMatrix);
 
