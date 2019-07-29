@@ -25,19 +25,20 @@ function Camera()
 	this.state = {yawIntensity: 0.0,
 				pitchIntensity: 0.0,
 				pivot: vec3.fromValues(0.0, 0.0, 0.0),
+				screenPivot: vec2.fromValues(0, 0),
 				pan: vec3.fromValues(0.0, 0.0, 0.0),
 				pickedPoint: vec3.fromValues(0, 0, 0),
 				pickedScreenPoint: vec2.fromValues(0, 0),
 				angularVelocity: 0.0,
 				zoomIntensity: 0.0,
 				maximumZoom: 0.0,
-				screen: [0, 0],
 				scale: vec3.fromValues[1, 1, 1],
 				velocity: vec3.fromValues(0.0, 0.0, 0.0),
 				forward: 0, backward: 0,
 				left: 0, right: 0,
 				up: 0, down: 0,
 				isOrtho: false};
+	this.screenBounds = [0, 0];
 
 	this.near = 1e-1;
 	this.far = 1e5;
@@ -100,25 +101,11 @@ Camera.prototype.setPickcallback = function(callback)
 
 Camera.prototype.beginPan = function(x, y)
 {
-	this.pickCallback(x, y, (pos, projectionMatrix, screenBounds) =>
+	this.pickCallback(x, y, (pos, projectionMatrix) =>
 	{
 		if(pos)
 		{
-			// let vp = mat4.create();
-			// mat4.mul(vp, projectionMatrix, this.viewMatrix);
-
-
-			// vec3.transformMat4(pivot, pivot, viewMatrix);
-
-			// vec3.trans
-			// console.log(x, y);
-			// this.manipulator.setPanning(true);
 			this.state.projectionMatrix = projectionMatrix;
-			this.state.screen[0] = screenBounds.width;
-			this.state.screen[1] = screenBounds.height;
-
-			
-
 			
 			vec2.set(this.state.pickedScreenPoint, );
 			vec3.set(this.state.pickedPoint, pos[0], pos[1], pos[2] || 0);
@@ -127,52 +114,21 @@ Camera.prototype.beginPan = function(x, y)
 			mat4.mul(vp, this.manipulator.getProjectionMatrix(), this.manipulator.getViewMatrix());
 			
 			vec4.transformMat4(v, v, vp);
-			
-			console.log(x, y);
-			console.log(x / screenBounds.width, y / screenBounds.height);
-			console.log((x / screenBounds.width) * 2 - 1, (y / screenBounds.height) * 2 - 1);
-			console.log(v[0], v[1], v[2], v[3]);
-			console.log(v[0] / v[3], v[1] / v[3], v[2] / v[3]);
-			console.log("======");
-			// console.log(this.state.pickedPoint);
-			// console.log(pos);
 		}
 		
 	});
 }
-
-// Camera.prototype.pan = function(x, y)
-// {
-// 	this.pickCallback(x, y, (pos, projectionMatrix, bounds) =>
-// 	{
-// 		if(pos)
-// 		{
-// 			// let vp = mat4.create();
-// 			// mat4.mul(vp, projectionMatrix, this.viewMatrix);
-
-
-// 			// vec3.transformMat4(pivot, pivot, viewMatrix);
-
-// 			// vec3.trans
-// 			// console.log(x, y);
-// 			this.manipulator.setPanning(true);
-// 			this.state.projectionMatrix = projectionMatrix;
-// 			this.state.screen = {width: bounds.width, height: bounds.height};
-// 			vec3.set(this.state.pickedPoint, pos[0], pos[1], pos[2] || 0);
-// 			// console.log(pos);
-// 		}
-		
-// 	});
-// }
 
 Camera.prototype.setPanAsPrimary = function(isPrimary = true)
 {
 	this.isPanPrimary = isPrimary;
 }
 
-Camera.prototype.zoom = function(intensity)
+Camera.prototype.zoom = function(intensity, x, y)
 {
 	this.state.zoomIntensity = intensity;
+	// this.state.screenPivot[0] = x;
+	// this.state.screenPivot[0] = y;
 }
 
 Camera.prototype.setOrthoMode = function(isOrtho = true)
@@ -352,17 +308,14 @@ Camera.prototype.installCamera = function(element, viewCallback, projectionCallb
 	{
 		if(this.mouseState.mousePress && (this.isPanPrimary || this.mouseState.index === 2))
 		{
-			let sx = (mouseState.x / this.state.screen[0]) * 2 - 1;
-			let sy = (mouseState.y / this.state.screen[1]) * 2 - 1;
+			let sx = (mouseState.x / this.screenBounds[0]) * 2 - 1;
+			let sy = (mouseState.y / this.screenBounds[1]) * 2 - 1;
 
-			let ex = (e.clientX / this.state.screen[0]) * 2 - 1;
-			let ey = (e.clientY / this.state.screen[1]) * 2 - 1;
-
-			// vec3.set(this.state.pan, mouseState.x - e.clientX, -mouseState.y + e.clientY, 0);
+			let ex = (e.clientX / this.screenBounds[0]) * 2 - 1;
+			let ey = (e.clientY / this.screenBounds[1]) * 2 - 1;
 
 			vec3.set(this.state.pan, sx - ex, -sy + ey, 0);
-			// console.log(e.clientX / this.state.screen[0], e.clientY / this.state.screen[1]);
-			// console.log(this.state.pan);
+
 			mouseState.x = e.clientX;
 			mouseState.y = e.clientY;
 		}
@@ -459,9 +412,8 @@ Camera.prototype.installCamera = function(element, viewCallback, projectionCallb
 			endTouch();
 		}, false);
 		
-		let _scroll = (delta) =>
+		let _scroll = (delta, x, y) =>
 		{
-			
 			if(this.manipulatorType === Camera.FLY_MANIPULATOR_TYPE)
 			{
 				let deltaV = delta * this.velocityScale * 0.1;
@@ -501,14 +453,19 @@ Camera.prototype.installCamera = function(element, viewCallback, projectionCallb
 					delta = -10;
 				}
             }
-        
-			_scroll(delta);
+			let x = (e.clientX / this.screenBounds[0]) * 2 - 1;
+			let y = (e.clientY / this.screenBounds[1]) * 2 - 1;
+
+			// console.log(x, y);
+			_scroll(delta, x, y);
 		});
 
 		let pinchHelper = new PinchHelper(element);
 		pinchHelper.setPinchCallback((diff, position, pan) =>
 		{
-			_scroll(diff*10);
+			let x = (position[0] / this.screenBounds[0]) * 2 - 1;
+			let y = (position[1] / this.screenBounds[1]) * 2 - 1;
+			_scroll(diff*10, x, y);
 		})
 
 		
@@ -595,6 +552,8 @@ Camera.prototype.installCamera = function(element, viewCallback, projectionCallb
 			let bounds = element.getBoundingClientRect();
 			let w = bounds.width;
 			let h = bounds.height;
+			this.screenBounds[0] = w;
+			this.screenBounds[1] = h;
 
 			if(this.manipulatorType !== Camera.ORTHO_MANIPULATOR_TYPE)
 			{
@@ -602,10 +561,7 @@ Camera.prototype.installCamera = function(element, viewCallback, projectionCallb
 				mat4.perspective(m, this.fov, w / h, this.near, this.far);
 				this.manipulator.setProjectionMatrix(m);
 			}
-			else
-			{
 
-			}
 
 			resizeCallback(w, h);
 			this.forceDraw = true;

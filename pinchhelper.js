@@ -83,11 +83,6 @@ function PinchHelper (element)
 
 	let finish = (e) =>
 	{
-		// if(this.map.hasOwnProperty)
-		// {
-		// 	this.map[e.pointerId] = e;
-		// 	this.count++;
-		// }
 		delete this.map[e.pointerId];
 		this.arr = Object.values(this.map);
 
@@ -97,9 +92,6 @@ function PinchHelper (element)
 			this.map = {};
 			this.arr = [];
 		}
-		// e.preventDefault();
-
-		// e.preventDefault();
 	}
 
 
