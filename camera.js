@@ -107,7 +107,6 @@ Camera.prototype.beginPan = function(x, y)
 		{
 			this.state.projectionMatrix = projectionMatrix;
 			
-			vec2.set(this.state.pickedScreenPoint, );
 			vec3.set(this.state.pickedPoint, pos[0], pos[1], pos[2] || 0);
 			let vp = mat4.create();
 			let v = vec4.fromValues(pos[0], pos[1], pos[2], 1);

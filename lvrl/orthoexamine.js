@@ -65,87 +65,12 @@ OrthoExamine.prototype.updateProjection = function(dt, state)
 		// Scale (zoom) in  orthographic
 		if(hasZoom)
 		{
-			// console.log(state.zoomIntensity);
 			let scale = 1 + state.zoomIntensity;
-
-
-			// this.bounds.left -= this.origin[0];
-			// this.bounds.right -= this.origin[0];
-			// this.bounds.top -= this.origin[1];
-			// this.bounds.bottom -= this.origin[1];
 
 			this.bounds.left *= scale;
 			this.bounds.right *= scale;
 			this.bounds.top *= scale;
 			this.bounds.bottom *= scale;
-
-			// this.bounds.left += this.origin[0];
-			// this.bounds.right += this.origin[0];
-			// this.bounds.top += this.origin[1];
-			// this.bounds.bottom += this.origin[1];
-
-			// if(this.origin[0] > 0)
-			// {
-			// 	if(this.bounds.right > this.right)
-			// 	{
-			// 		this.origin[0] = Math.max(0, (this.bounds.right - this.origin[0]) - this.right);
-			// 		this.bounds.left += this.right - this.bounds.right;
-			// 		this.bounds.right = this.right;
-			// 	}
-			// }
-			// else
-			// {
-			// 	if(this.bounds.left < this.left)
-			// 	{
-			// 		this.origin[0] = Math.max(0, (this.bounds.left - this.origin[0]) - this.left);
-			// 		this.bounds.right += this.left - this.bounds.left;
-			// 		this.bounds.left = this.left;
-			// 	}
-			// }
-
-			// if(this.origin[1] > 0)
-			// {
-			// 	if(this.bounds.top > this.top)
-			// 	{
-			// 		this.origin[1] = Math.max(0, (this.bounds.top - this.origin[1]) - this.top);
-			// 		this.bounds.bottom += this.top - this.bounds.top;
-			// 		this.bounds.top = this.top;
-			// 	}
-			// }
-			// else
-			// {
-			// 	if(this.bounds.bottom < this.bottom)
-			// 	{
-			// 		// this.bounds.left = this.left;
-			// 		this.origin[1] = Math.max(0, (this.bounds.bottom - this.origin[1]) - this.bottom);
-			// 		this.bounds.top += this.bottom - this.bounds.bottom;
-			// 		this.bounds.bottom = this.bottom;
-			// 	}
-			// }
-
-			// // console.log(this.origin);
-
-
-			// if(this.bounds.left < this.left)
-			// {
-			// 	console.log(this.bounds.left - this.left);
-			// 	this.bounds.left = this.left;
-			// }
-			// if(this.bounds.right > this.right)
-			// {
-			// 	console.log(this.bounds.right - this.right);
-			// 	this.bounds.right = this.right;
-			// }
-			// if(this.bounds.top > this.top)
-			// {
-			// 	this.bounds.top = this.top;
-			// }
-			// if(this.bounds.bottom < this.bottom)
-			// {
-			// 	this.bounds.bottom = this.bottom;
-			// }
-
-			
 
 			state.zoomIntensity = 0;
 		}
@@ -157,56 +82,13 @@ OrthoExamine.prototype.updateProjection = function(dt, state)
 
 			vec4.transformMat4(p, p, this.invProjection);
 
-
 			// Pan is length domain [-1, 1], to set on domain [0, 1] just divide 2
 			let dx = (state.pan[0] * 0.5) * (this.bounds.right - this.bounds.left); 
 			let dy = (state.pan[1] * 0.5) * (this.bounds.top - this.bounds.bottom);
 
-			// if(this.bounds.right + dx < this.right && 
-			//    this.bounds.left + dx > this.left)
-			{
-				// this.bounds.left += dx;
-				// this.bounds.right += dx;
-			}
-			// else if(this.bounds.right + dx > this.right)
-			// {
-			// 	this.bounds.left += this.right - this.bounds.right;
-			// 	this.bounds.right = this.right;
-			// }
-			// else if(this.bounds.left + dx < this.left)
-			// {
-			// 	this.bounds.right += this.left - this.bounds.left;
-			// 	this.bounds.left = this.left;
-			// }
-
-			// console.log(this.bounds.left, this.bounds.right);
-			// console.log(this.left, this.right);
-			console.log("====");
-
-
-			// if(this.bounds.top + dy < this.top && 
-			//    this.bounds.bottom + dy > this.bottom)
-			{
-				// this.bounds.top += dy;
-				// this.bounds.bottom += dy;
-			}
-			// else if(this.bounds.top + dy > this.top)
-			// {
-			// 	this.bounds.bottom += this.top - this.bounds.top;
-			// 	this.bounds.top = this.top;
-			// }
-			// else if(this.bounds.bottom + dy < this.bottom)
-			// {
-			// 	this.bounds.top += this.bottom - this.bounds.bottom;
-			// 	this.bounds.bottom = this.bottom;
-			// }
-
 			this.origin[0] += dx;
 			this.origin[1] += dy;
 
-
-			// this.bounds.left += dx;
-			// this.bounds.right += dx;
 			state.pan[0] = 0;
 			state.pan[1] = 0;
 		}
@@ -273,8 +155,6 @@ OrthoExamine.prototype.updateProjection = function(dt, state)
 		{
 			this.bounds.left = this.left;
 		}
-
-
 
 		mat4.ortho(this.projectionMatrix, 
 				   this.bounds.left + this.origin[0], 
