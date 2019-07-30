@@ -126,6 +126,8 @@ Camera.prototype.setPanAsPrimary = function(isPrimary = true)
 Camera.prototype.zoom = function(intensity, x, y)
 {
 	this.state.zoomIntensity = intensity;
+	this.state.pickedScreenPoint = [x, y];
+
 	// this.state.screenPivot[0] = x;
 	// this.state.screenPivot[0] = y;
 }
@@ -425,7 +427,7 @@ Camera.prototype.installCamera = function(element, viewCallback, projectionCallb
 			}
 			else 
 			{
-				this.zoom(delta * 0.005);
+				this.zoom(delta * 0.005, x, y);
 			}
 		}
 		
@@ -453,7 +455,7 @@ Camera.prototype.installCamera = function(element, viewCallback, projectionCallb
 				}
             }
 			let x = (e.clientX / this.screenBounds[0]) * 2 - 1;
-			let y = (e.clientY / this.screenBounds[1]) * 2 - 1;
+			let y = ((this.screenBounds[1] - e.clientY) / this.screenBounds[1]) * 2 - 1;
 
 			// console.log(x, y);
 			_scroll(delta, x, y);
@@ -463,7 +465,7 @@ Camera.prototype.installCamera = function(element, viewCallback, projectionCallb
 		pinchHelper.setPinchCallback((diff, position, pan) =>
 		{
 			let x = (position[0] / this.screenBounds[0]) * 2 - 1;
-			let y = (position[1] / this.screenBounds[1]) * 2 - 1;
+			let y = ((this.screenBounds[1] -position[1]) / this.screenBounds[1]) * 2 - 1;
 			_scroll(diff*10, x, y);
 		})
 

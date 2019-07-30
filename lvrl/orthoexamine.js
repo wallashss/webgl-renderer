@@ -63,14 +63,28 @@ OrthoExamine.prototype.updateProjection = function(dt, state)
 		let hasZoom = !glMatrix.equals(state.zoomIntensity, 0.0);
 
 		// Scale (zoom) in  orthographic
+		
 		if(hasZoom)
 		{
 			let scale = 1 + state.zoomIntensity;
+
+			// Relative to screen 
+			let width = this.bounds.right - this.bounds.left;
+			let height = this.bounds.top - this.bounds.bottom;
+
+			let originX = (state.pickedScreenPoint[0] * 0.5) * width;
+			let originY = (state.pickedScreenPoint[1] * 0.5) * height;
+
+			let destX = (state.pickedScreenPoint[0] * 0.5) * scale * width;
+			let destY = (state.pickedScreenPoint[1] * 0.5) * scale * height;
 
 			this.bounds.left *= scale;
 			this.bounds.right *= scale;
 			this.bounds.top *= scale;
 			this.bounds.bottom *= scale;
+
+			this.origin[0] += originX - destX;
+			this.origin[1] += originY - destY;
 
 			state.zoomIntensity = 0;
 		}
@@ -82,9 +96,13 @@ OrthoExamine.prototype.updateProjection = function(dt, state)
 
 			vec4.transformMat4(p, p, this.invProjection);
 
+			// Relative to bounds
+			let width = this.bounds.right - this.bounds.left;
+			let height = this.bounds.top - this.bounds.bottom;
+
 			// Pan is length domain [-1, 1], to set on domain [0, 1] just divide 2
-			let dx = (state.pan[0] * 0.5) * (this.bounds.right - this.bounds.left); 
-			let dy = (state.pan[1] * 0.5) * (this.bounds.top - this.bounds.bottom);
+			let dx = (state.pan[0] * 0.5) * width; 
+			let dy = (state.pan[1] * 0.5) * height;
 
 			this.origin[0] += dx;
 			this.origin[1] += dy;
