@@ -20,6 +20,8 @@ function OrthoExamine()
 	this.near = 1e-1;
 	this.far = 1e5;
 
+	this.padding = [0, 0];
+
 	this.origin = [0, 0];
 
 	this.fullProjection = mat4.create();
@@ -34,6 +36,14 @@ function OrthoExamine()
 }
 
 OrthoExamine.prototype = Object.create(Manipulator.prototype);
+
+
+OrthoExamine.prototype.setPadding = function(x, y)
+{
+	this.padding[0] = x;
+	this.padding[1] = y;
+
+}
 
 OrthoExamine.prototype.setProjectionMatrix = function(projectionMatrix)
 {
@@ -112,9 +122,9 @@ OrthoExamine.prototype.updateProjection = function(dt, state)
 		}
 
 		// Constrain offset
-		if(this.bounds.top + this.origin[1] > this.top)
+		if(this.bounds.top + this.origin[1] > this.top - this.padding[1])
 		{
-			let offset = (this.bounds.top + this.origin[1]) - this.top;
+			let offset = (this.bounds.top + this.origin[1]) - (this.top - this.padding[1]);
 			this.origin[1] -= offset;
 
 			if(this.bounds.bottom + this.origin[1] < this.bottom)
@@ -122,9 +132,9 @@ OrthoExamine.prototype.updateProjection = function(dt, state)
 				this.origin[1] = 0;
 			}
 		}
-		else if(this.bounds.bottom + this.origin[1] < this.bottom)
+		else if(this.bounds.bottom + this.origin[1] < this.bottom + this.padding[1])
 		{
-			let offset = (this.bounds.bottom + this.origin[1]) - this.bottom;
+			let offset = (this.bounds.bottom + this.origin[1]) - (this.bottom + this.padding[1]);
 			this.origin[1] -= offset;
 
 			if(this.bounds.top + this.origin[1] > this.top)
@@ -133,9 +143,9 @@ OrthoExamine.prototype.updateProjection = function(dt, state)
 			}
 		}
 
-		if(this.bounds.right + this.origin[0] > this.right)
+		if(this.bounds.right + this.origin[0] > this.right - this.padding[0])
 		{
-			let offset = (this.bounds.right + this.origin[0]) - this.right;
+			let offset = (this.bounds.right + this.origin[0]) - (this.right - this.padding[0]);
 			this.origin[0] -= offset;
 
 			if(this.bounds.left + this.origin[0] < this.left)
@@ -143,9 +153,9 @@ OrthoExamine.prototype.updateProjection = function(dt, state)
 				this.origin[0] = 0;
 			}
 		}
-		else if(this.bounds.left + this.origin[0] < this.left)
+		else if(this.bounds.left + this.origin[0] < this.left + this.padding[0])
 		{
-			let offset = (this.bounds.left + this.origin[0]) - this.left;
+			let offset = (this.bounds.left + this.origin[0]) - (this.left + this.padding[0]);
 			this.origin[0] -= offset;
 
 			if(this.bounds.right + this.origin[0] > this.right)
@@ -173,6 +183,28 @@ OrthoExamine.prototype.updateProjection = function(dt, state)
 		{
 			this.bounds.left = this.left;
 		}
+
+		let boundsWidth = this.bounds.right - this.bounds.left;
+		let boundsHeight = this.bounds.top - this.bounds.bottom;
+
+		let fullWidth = this.right - this.left;
+		let fullHeight = this.top - this.bottom;
+
+		if(boundsWidth > fullWidth - 2 * this.padding[0])
+		{
+			this.origin[0] = 0;
+		}
+
+		if(boundsHeight > fullHeight - 2 * this.padding[1])
+		{
+			this.origin[1] = 0;
+		}
+
+		console.log(this.padding);
+		console.log(this.origin);
+		console.log(this.bounds.left, this.bounds.right, this.bounds.top, this.bounds.bottom);
+		console.log(this.left, this.right, this.top, this.bottom);
+		console.log("====");
 
 		mat4.ortho(this.projectionMatrix, 
 				   this.bounds.left + this.origin[0], 

@@ -132,7 +132,12 @@ Camera.prototype.zoom = function(intensity, x, y)
 	// this.state.screenPivot[0] = y;
 }
 
-Camera.prototype.setOrthoMode = function(isOrtho = true)
+Camera.prototype.setPadding = function(x, y)
+{
+	this.manipulator.setPadding(x, y);
+}
+
+Camera.prototype.setOrthoMode = function()
 {
 	// this.state.isOrtho = isOrtho;
 	this.manipulatorType = Camera.ORTHO_MANIPULATOR_TYPE;
