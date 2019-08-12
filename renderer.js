@@ -11,6 +11,7 @@ function Renderer()
 {	
 	this.contextGL = null;
 	this.mainProgram = null;
+	this.lineRendererProgram = null;
 	this.programsMap = {};
 
 	this.wireFrameBuffer = null;
@@ -20,6 +21,7 @@ function Renderer()
 	this.points = [];
 
 	this.resourceManager = null;
+	this.screenSize = new Float32Array(2);
 	
 
 	// let hasDrawBuffer = false;
@@ -50,6 +52,12 @@ function Renderer()
 	this.disableClearColor = false;
 
 	this.forceUseBlend = null; // null - set to batch decide, true - always use blend, false - never use blending
+}
+
+Renderer.prototype.resize = function(w, h)
+{
+	this.screenSize[0] = w;
+	this.screenSize[1] = h;
 }
 
 Renderer.prototype.loadShaders = function(id, vertexSource, fragmentSource, isInstance)
@@ -134,7 +142,10 @@ Renderer.prototype.loadShaders = function(id, vertexSource, fragmentSource, isIn
 		let useTextureUniform = gl.getUniformLocation(program, "useTexture");
 		let unlitUniform = gl.getUniformLocation(program, "unlit");
 		let isBillboardUniform = gl.getUniformLocation(program, "isBillboard");
+		let billboardSizeUniform = gl.getUniformLocation(program, "billboardSize");
+		let billboardRotUniform = gl.getUniformLocation(program, "billboardRotation");
 		let texSamplerUniform = gl.getUniformLocation(program, "texSampler");
+		let screenUniform = gl.getUniformLocation(program, "screen");
 
 		let newProgram = {program: program,
 				positionVertex: positionVertex,
@@ -152,8 +163,11 @@ Renderer.prototype.loadShaders = function(id, vertexSource, fragmentSource, isIn
 				colorUniform: colorUniform,
 				useTextureUniform: useTextureUniform,
 				unlitUniform: unlitUniform,
+				billboardSizeUniform: billboardSizeUniform,
+				billboardRotUniform: billboardRotUniform,
 				isBillboardUniform: isBillboardUniform,
 				texSamplerUniform: texSamplerUniform,
+				screenUniform: screenUniform,
 				id: programId,
 				attribs: attribs,
 				modelAttribs: modelAttribs,
@@ -199,7 +213,6 @@ Renderer.prototype.draw = function(batchManager)
 		return;
 	}
 
-	
 	// Default matrices
 	let m = mat4.create();
 	let mv = mat4.create();
@@ -209,18 +222,20 @@ Renderer.prototype.draw = function(batchManager)
 	let normalMatrix = mat4.create();
 	
 	// Variables to hold program state
-	let currentProgram = null;
-	let currentVertexBufferId = null;
-	let currentElementBufferId = null;
-	let currentModelBufferId = null;
-	let currentColorBufferId = null;
-	let currentTextureId = null;
-	let blendEnabled = false;
-	let cullFaceEnabled = false;
-	let inverseCullFace = false;
-	let depthMaskEnabled = true;
-	let unlintSet = false;
-	let billboardSet = false;
+	let currentProgram 				= null;
+	let currentVertexBufferId 		= null;
+	let currentElementBufferId 		= null;
+	let currentModelBufferId	 	= null;
+	let currentColorBufferId 		= null;
+	let currentTextureId 			= null;
+	let blendEnabled 				= false;
+	let cullFaceEnabled 			= false;
+	let inverseCullFace 			= false;
+	let depthMaskEnabled 			= true;
+	let unlintSet 					= false;
+	let billboardSet 				= false;
+	let billboardSizeSet 			= false;
+	let billboardRotSet 			= false;
 
 	gl.activeTexture(gl.TEXTURE0);
 
@@ -261,8 +276,14 @@ Renderer.prototype.draw = function(batchManager)
 			gl.uniform1f(currentProgram.unlitUniform, unlintSet ? 1.0 : 0.0);
 
 			billboardSet = b.isBillboard;
-			gl.uniform1f(currentProgram.isBillboardUniform, billboardSet ? 1.0 : 0.0);
-		
+			billboardSizeSet = b.billboardSize;
+			billboardRotSet = b.billboardRotation;
+			// gl.uniform1f(currentProgram.billboardSize, billboardSet ? 1.0 : 0.0);
+			gl.uniform1f(currentProgram.billboardSizeUniform, billboardSizeSet ? 1.0 : 0.0);
+			gl.uniform1f(currentProgram.billboardRotUniform, billboardRotSet ? 1.0 : 0.0);
+			
+
+			gl.uniform2f(currentProgram.screenUniform, this.screenSize[0], this.screenSize[1]);			
 		}
 		
 		if(b.unlit !== unlintSet)
@@ -275,6 +296,18 @@ Renderer.prototype.draw = function(batchManager)
 		{
 			billboardSet = b.isBillboard;
 			gl.uniform1f(currentProgram.isBillboardUniform, billboardSet ? 1.0 : 0.0);
+		}
+
+		if(b.billboardSize !== billboardSizeSet)
+		{
+			billboardSizeSet = b.billboardSize;
+			gl.uniform1f(currentProgram.billboardSizeUniform, billboardSizeSet ? 1.0 : 0.0);
+		}
+
+		if(b.billboardRotation !== billboardRotSet)
+		{
+			billboardRotSet = b.billboardRotation;
+			gl.uniform1f(currentProgram.billboardRotUniform, billboardRotSet ? 1.0 : 0.0);
 		}
 		
 		// Setup model matrix
@@ -463,33 +496,31 @@ Renderer.prototype.draw = function(batchManager)
 	// Draw Lines
 	if(batchManager.lines.length > 0)
 	{
-		currentProgram = this.mainProgram;
+		currentProgram = this.lineRendererProgram;
 		_enableAttribs.call(this, currentProgram.attribs);
 		gl.useProgram(currentProgram.program);
 
-		mat4.identity(m);
-		mat4.multiply(mv, v, m);
-		mat4.multiply(mvp, p, mv);
-
-		gl.uniform1f(currentProgram.unlitUniform, 1.0);
-		gl.uniformMatrix4fv(currentProgram.modelViewUniform, false, mv);
-		gl.uniformMatrix4fv(currentProgram.modelViewProjectionUniform, false, mvp);
+		gl.uniform2f(currentProgram.screenUniform, this.screenSize[0], this.screenSize[1]);
 
 		for(let i =0 ; i < batchManager.lines.length; i++)
 		{
 			let l = batchManager.lines[i];
-
-			gl.uniform1i(currentProgram.texSamplerUniform, 0);
-			gl.bindTexture(gl.TEXTURE_2D, this.dummyTexture);
-			gl.uniform1f(currentProgram.useTextureUniform, 0.0);
+			
+			mat4.identity(mv);
+			mat4.identity(mvp);
+			mat4.multiply(mv, v, l.transform);
+			mat4.multiply(mvp, p, mv);
 			gl.uniform4fv(currentProgram.colorUniform, l.color);
+
+			// gl.uniformMatrix4fv(currentProgram.modelViewUniform, false, mv);
+			gl.uniformMatrix4fv(currentProgram.modelViewProjectionUniform, false, mvp);
 			
 			gl.bindBuffer(gl.ARRAY_BUFFER, l.verticesBufferId);
-			gl.vertexAttribPointer(currentProgram.positionVertex, 3, gl.FLOAT, false, l.vertexSize, 0);
-			gl.vertexAttribPointer(currentProgram.normalVertex, 3, gl.FLOAT, false, l.vertexSize, 0); // 3 components x 4 bytes per float		
-			gl.vertexAttribPointer(currentProgram.texcoord, 2, gl.FLOAT, false, l.vertexSize, 0);
+			gl.vertexAttribPointer(currentProgram.positionVertex, 4, gl.FLOAT, false, l.vertexSize, 0);
+			gl.vertexAttribPointer(currentProgram.normalVertex, 4, gl.FLOAT, false, l.vertexSize, 16); // 4 components x 4 bytes per float		
 			
-			gl.drawArrays(gl.LINES, 0, l.count);
+			gl.drawArrays(gl.TRIANGLE_STRIP, 0, l.count);
+			// gl.drawArrays(gl.LINE_STRIP, 0, l.count);
 		}
 	}
 	
@@ -525,7 +556,6 @@ Renderer.prototype.draw = function(batchManager)
 			gl.vertexAttribPointer(currentProgram.texcoord, 2, gl.FLOAT, false, point.vertexSize, 0);
 			
 			gl.drawArrays(gl.LINES, 0, point.count);
-			// gl.drawArrays(gl.POINTS, 0, point.count);
 		}
 	}
 
@@ -679,6 +709,8 @@ Renderer.prototype.load = function()
 
 	this.loadShaders(Renderer.DEFAULT_WIREFRAME_PROGRAM_ID, Shaders.WIREFRAME_VERTEX_SHADER_SOURCE, Shaders.WIREFRAME_FRAGMENT_SHADER_SOURCE, false);
 
+	this.loadShaders(Renderer.LINE_RENDERER_ID, Shaders.LINE_INSTANCE_VERTEX_SHADER_SOURCE, Shaders.LINE_FRAGMENT_SHADER_SOURCE, false);
+
 	if(this.contextGL.hasInstancing)
 	{
 		this.loadShaders(Renderer.INSTANCE_PROGRAM_ID, Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, true);
@@ -687,6 +719,8 @@ Renderer.prototype.load = function()
 
 		this.loadShaders(Renderer.INSTANCE_WIREFRAME_PROGRAM_ID, Shaders.WIREFRAME_INSTANCE_VERTEX_SHADER_SOURCE, Shaders.WIREFRAME_FRAGMENT_SHADER_SOURCE, true);
 	}
+
+	this.lineRendererProgram = this.programsMap[Renderer.LINE_RENDERER_ID];
 	
 	// Set clear color
 	gl.clearColor(this.backgroundColor.r, this.backgroundColor.g, this.backgroundColor.b, this.backgroundColor.a);
@@ -813,6 +847,7 @@ Renderer.DEFAULT_PROGRAM_ID = "_default";
 Renderer.INSTANCE_PROGRAM_ID = "_instance";
 Renderer.POINTMESH_PROGRAM_ID = "_pointMesh";
 Renderer.DEFAULT_WIREFRAME_PROGRAM_ID = "_defaultWireframe";
+Renderer.LINE_RENDERER_ID = "_lineRenderer";
 Renderer.INSTANCE_WIREFRAME_PROGRAM_ID = "_instanceWireframe";
 
 module.exports = Renderer;

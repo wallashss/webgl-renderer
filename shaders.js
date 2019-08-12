@@ -4,6 +4,7 @@ attribute vec3 position;
 attribute vec3 normal;
 attribute vec2 texcoord;
 
+uniform highp vec2 screen;
 uniform highp mat4 modelView;
 uniform highp mat4 modelViewProjection;
 uniform highp mat4 normalMatrix;
@@ -83,11 +84,13 @@ attribute highp mat4 model;
 attribute vec4 colorInstance;
 // attribute vec4 pickingInstance;
 
+uniform highp vec2 screen;
 uniform highp mat4 projection;
 uniform highp mat4 modelViewProjection;
 uniform highp mat4 modelView;
-uniform highp mat4 normalMatrix;
 uniform float isBillboard;
+uniform float billboardSize;
+uniform float billboardRotation;
 uniform vec4 color;
 
 // varying highp vec4 vPicking;
@@ -99,29 +102,80 @@ varying vec2 vTexcoord;
 
 void main (void)
 {
+	currentColor = colorInstance;
+    vTexcoord = texcoord;
     if(isBillboard > 0.0)
     {
         gl_Position =  projection * (modelView * model * vec4(0, 0, 0, 1.0) + model * vec4(position, 0));
-        currentColor = colorInstance;
+        vNormal = normalize(mat3(modelView) * normal);
+        return;
+    }
+	else if(billboardSize > 0.0)
+    {
+		mat4 m = model;
+		vec4 pos = model[3];
+		m[3] = vec4(0, 0, 0, 1);
+
+        //gl_Position = projection * (modelView * model * vec4(0, 0, 0, 1.0) + model * vec4(position, 0));
+		//gl_Position = projection * vec4(position, 1);
+		//gl_Position = projection * (modelView * model * vec4(0, 0, 0, 1.0) + vec4(position, 0));
+
+		gl_Position = modelViewProjection * pos;
+		gl_Position /= gl_Position.w;
+		gl_Position.xy += position.xy / screen;
+
+
         vNormal = normalize(mat3(modelView) * normal);
         vTexcoord = texcoord;
         return;
     }
-    gl_Position =  modelViewProjection * model * vec4(position, 1.0);
-    
-    currentColor = colorInstance;
+	else if(billboardRotation > 0.0)
+    {
+        gl_Position =  projection * (modelView * model * vec4(0, 0, 0, 1.0) + model * vec4(position, 0));
+        vNormal = normalize(mat3(modelView) * normal);
+        vTexcoord = texcoord;
+        return;
+    }
+	else
+	{
+		gl_Position =  modelViewProjection * model * vec4(position, 1.0);
 
-    vTexcoord = texcoord;
-
-    vec4 vPosition4 = modelView  * model * vec4(position, 1.0);
-    vPosition = vPosition4.xyz / vPosition4.w;
-    
-    // vPicking = pickingInstance;
-    vNormal = mat3(modelView) * mat3(model) * normal;
-    vNormal = normalize(vNormal);
+		vec4 vPosition4 = modelView  * model * vec4(position, 1.0);
+		vPosition = vPosition4.xyz / vPosition4.w;
+		
+		vNormal = mat3(modelView) * mat3(model) * normal;
+		vNormal = normalize(vNormal);
+	}
 }
 `
 
+exports.LINE_INSTANCE_VERTEX_SHADER_SOURCE  = 
+`
+attribute vec4 position;
+attribute vec4 normal;
+
+uniform highp vec2 screen;
+uniform highp mat4 modelViewProjection;
+
+
+void main (void)
+{
+	vec4 a = modelViewProjection * vec4(position.xyz, 1.0);
+	vec4 b = modelViewProjection * vec4(normal.xyz, 1.0);
+
+	a.xy /= a.w;
+	b.xy /= b.w;
+
+	vec2 diff = a.xy - b.xy;
+	vec2 perpendicular = vec2(diff.y, -diff.x);
+	
+	a.xy += perpendicular * normal.w / screen ;
+
+	a.xy *= a.w;
+
+	gl_Position = a;
+}
+`
 exports.WIREFRAME_INSTANCE_VERTEX_SHADER_SOURCE =
 `
 attribute vec3 position;
@@ -217,6 +271,16 @@ void main (void)
     // vPicking = pickingInstance;
     vNormal = mat3(modelView) * normal;
     vNormal = normalize(vNormal);
+}
+`
+
+exports.LINE_FRAGMENT_SHADER_SOURCE = 
+`
+precision mediump float;
+uniform vec4 color;
+void main(void)
+{
+    gl_FragColor = color;
 }
 `
 

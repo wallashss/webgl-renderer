@@ -177,6 +177,8 @@ Camera.prototype.setExamineMode = function()
 		this.examineManipulator.setViewMatrix(viewMatrix);
 	}
 	this.manipulator = this.examineManipulator;
+
+	
 }
 
 Camera.prototype.setViewMatrix = function(viewMatrix, forceDraw = true)

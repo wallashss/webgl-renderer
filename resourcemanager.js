@@ -73,6 +73,77 @@ ResourceManager.prototype.addTexture = function(textureName, texture, isNearest)
 	this.textureMap[textureName] = textureId;
 }
 
+ResourceManager.prototype.uploadLines = function(vertices, colors, width)
+{
+	let gl = this.gl;
+	let verticesBufferId = gl.createBuffer();
+
+	let vertexSize = 3;
+	let lineCount = vertices.length / vertexSize;
+
+	let buffer = new Float32Array( (vertices.length / 3) * 4 * 4 );
+	let bufferVerticeSize = 16;
+
+	let bufferCount = 2 * lineCount;
+	for(let i = 0; i < bufferCount; i++)
+	{
+		let bidx = i * bufferVerticeSize;
+		let lidx = i * vertexSize;
+
+
+		buffer[bidx + 0] = vertices[lidx + 0];
+		buffer[bidx + 1] = vertices[lidx + 1];
+		buffer[bidx + 2] = vertices[lidx + 2];
+		buffer[bidx + 3] = -width;
+
+		if(i % 2 === 0)
+		{
+			let nlidx = (i+1) * vertexSize;
+			buffer[bidx + 4] = vertices[nlidx + 0];
+			buffer[bidx + 5] = vertices[nlidx + 1];
+			buffer[bidx + 6] = vertices[nlidx + 2];
+			buffer[bidx + 7] = -width;
+		}
+		else
+		{
+			let nlidx = (i-1) * vertexSize;
+			buffer[bidx + 4] = vertices[nlidx + 0];
+			buffer[bidx + 5] = vertices[nlidx + 1];
+			buffer[bidx + 6] = vertices[nlidx + 2];
+			buffer[bidx + 7] = +width;
+		}
+
+		buffer[bidx + 8] = vertices[lidx + 0];
+		buffer[bidx + 9] = vertices[lidx + 1];
+		buffer[bidx + 10] = vertices[lidx + 2];
+		buffer[bidx + 11] = +width;
+
+		if(i % 2 === 0)
+		{
+			let nlidx = (i+1) * vertexSize;
+			buffer[bidx + 12] = vertices[nlidx + 0];
+			buffer[bidx + 13] = vertices[nlidx + 1];
+			buffer[bidx + 14] = vertices[nlidx + 2];
+			buffer[bidx + 15] = +width;
+			
+		}
+		else
+		{
+			let nlidx = (i-1) * vertexSize;
+			buffer[bidx + 12] = vertices[nlidx + 0];
+			buffer[bidx + 13] = vertices[nlidx + 1];
+			buffer[bidx + 14] = vertices[nlidx + 2];
+			buffer[bidx + 15] = -width;
+		}
+	}
+	
+	gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
+	gl.bufferData(gl.ARRAY_BUFFER, buffer, gl.STATIC_DRAW);	
+
+	console.log(vertices);
+	console.log(buffer);
+	return verticesBufferId;
+}
 ResourceManager.prototype.uploadMesh = function(vertices, elements)
 {
 	let gl = this.gl;

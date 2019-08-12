@@ -18,9 +18,6 @@ function BatchManager(contextGL)
 
 	this.generateId = () =>
 	{
-		// console.log(this.name, DEFAULT_NEXT_ID);
-		// console.trace("id");
-		
 		let id = DEFAULT_NEXT_ID;
 		DEFAULT_NEXT_ID++;
 		return id;
@@ -362,26 +359,36 @@ BatchManager.prototype.addPoints = function(vertices, color, transform)
 	
 	this.points.push({verticesBufferId: verticesBufferId,
 				count: vertices.length / 3,
-				vertexSize: 3 * 4, // 3 components * 4 bytes per float
+				vertexSize: 4, // 3 components * 4 bytes per float
 				color: color,
 				transform: transform});
 }
 
-BatchManager.prototype.addLines = function(vertices, color)
-{
-	let verticesBufferId = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);	
+// BatchManager.prototype.addLines = function(vertices, color, width)
+// {
+// 	let verticesBufferId = gl.createBuffer();
 	
-	if(!color)
-	{
-		color = vec4.fromValues(1.0, 1.0, 1.0, 1.0);
-	}
+// 	gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
+// 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);	
 	
+// 	if(!color)
+// 	{
+// 		color = vec4.fromValues(1.0, 1.0, 1.0, 1.0);
+// 	}
+	
+// 	this.lines.push({verticesBufferId: verticesBufferId,
+// 				count: vertices.length / 3,
+// 				vertexSize: 3 * 4, // 3 components * 4 bytes per float
+// 				color: color});
+// }
+
+BatchManager.prototype.addLines = function(verticesBufferId, lineCount, transform = mat4.create(), color = new Uint8Array([255, 255, 255, 255]))
+{	
 	this.lines.push({verticesBufferId: verticesBufferId,
-				count: vertices.length / 3,
-				vertexSize: 3 * 4, // 3 components * 4 bytes per float
-				color: color});
+				count: lineCount * 4 ,
+				transform: transform,
+				color: color,
+				vertexSize: 8 * 4});
 }
 
 BatchManager.prototype.clearBatches = function()
@@ -430,7 +437,9 @@ function _addInstances(mesh, matrices, colors, options)
 	let out = [];
 
 
-	let isBillboard = options.isBillboard || false;
+	let isBillboard = options.isBillboard || options.billboard || false;
+	let billboardSize = options.billboardSize || false;
+	let billboardRot = options.billboardRotation || false;
 	let textureName = options.textureName || null;
 	let inverseCullFace = options.inverseCullFace || false;
 	let cullFace = inverseCullFace || options.cullFace || false;
@@ -439,70 +448,21 @@ function _addInstances(mesh, matrices, colors, options)
 	let useBlending = false;
 	let useDepthMask = false;
 
-	if(inverseCullFace)
-	{
-		console.log("inverse!!!");
-	}
 
 	let b = {
-			// modelBufferId: modelBufferId,
-			// instanceCount: instanceCount,
-			// colorBufferId: colorBufferId,
-			// offsetMap: offsetMap,
-
-			// isInstance: true,
-			// programId: BatchManager.INSTANCE_PROGRAM_ID,
-
 			cullFace: cullFace,
 			inverseCullFace: inverseCullFace,
 			isBillboard: isBillboard || false,
+			billboardSize: billboardSize,
+			billboardRotation: billboardRot,
 			isWireframe: false,
 			mesh: mesh,
 			textureName: textureName,
 			useBlending: useBlending,
-			useDepthMask: useDepthMask,
+			useDepthMask: useDepthMask,			
 			unlit : unlit || false,
 			visible: true
 			}
-
-	// let b = {
-	// 		modelBufferId: modelBufferId,
-	// 		instanceCount: instanceCount,
-	// 		colorBufferId: colorBufferId,
-	// 		offsetMap: offsetMap,
-
-	// 		isInstance: true,
-	// 		programId: BatchManager.INSTANCE_PROGRAM_ID,
-
-	// 		cullFace: cullFace,
-	// 		isBillboard: isBillboard || false,
-	// 		isWireframe: false,
-	// 		mesh: mesh,
-	// 		textureName: textureName,
-	// 		useBlending: useBlending,
-	// 		useDepthMask: useDepthMask,
-	// 		unlit : unlit || false,
-	// 		visible: true
-	// 		}
-			 
-	// let b = {
-	// 		 transform: t,
-	// 		 color: c,
-			 
-	// 		 isInstance: false,
-	// 		 programId: BatchManager.DEFAULT_PROGRAM_ID,
-
-	// 		 cullFace: cullFace,
-	// 		 isBillboard: isBillboard,
-	// 		 isWireframe: false,
-	// 		 mesh: mesh,
-	// 		 textureName: textureName,
-	// 		 useBlending: useBlending,
-	// 		 useDepthMask: useDepthMask,
-	// 		 unlit: unlit,
-	// 		 visible: true,
-	// 		 }
-
 	if(!this.contextGL.hasInstancing)
 	{
 		const outIdx = this.generateId();
@@ -589,7 +549,7 @@ function _addInstances(mesh, matrices, colors, options)
 			useBlending = true;
 		}
 
-		if(isBillboard)
+		if(isBillboard || billboardSize || billboardRot)
 		{
 			useDepthMask = true;
 		}
@@ -637,12 +597,6 @@ function _addInstances(mesh, matrices, colors, options)
 		b.isInstance = true;
 		b.programId = BatchManager.INSTANCE_PROGRAM_ID;
 		
-	
-		// for(let i = 0 ; i < instanceCount; i++)
-		// {
-		// 	let idx = outIdx + i;
-		// 	this.batches[idx] = b;	
-		// }
 		for(let i = 0 ; i < out.length; i++)
 		{
 			let idx = out[i];
