@@ -140,8 +140,6 @@ ResourceManager.prototype.uploadLines = function(vertices, colors, width)
 	gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
 	gl.bufferData(gl.ARRAY_BUFFER, buffer, gl.STATIC_DRAW);	
 
-	console.log(vertices);
-	console.log(buffer);
 	return verticesBufferId;
 }
 ResourceManager.prototype.uploadMesh = function(vertices, elements)
