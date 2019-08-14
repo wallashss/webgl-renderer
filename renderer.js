@@ -275,10 +275,12 @@ Renderer.prototype.draw = function(batchManager)
 			billboardRotSet = b.billboardRotation;
 
 			// gl.uniform1f(currentProgram.billboardSize, billboardSet ? 1.0 : 0.0);
+			
+			gl.uniform1f(currentProgram.isBillboardUniform, billboardSet ? 1.0 : 0.0);
 			gl.uniform1f(currentProgram.billboardSizeUniform, billboardSizeSet ? 1.0 : 0.0);
 			gl.uniform1f(currentProgram.billboardRotUniform, billboardRotSet ? 1.0 : 0.0);
 			
-			gl.uniform2f(currentProgram.screenUniform, this.screenSize[0], this.screenSize[1]);			
+			gl.uniform2f(currentProgram.screenUniform, this.screenSize[0], this.screenSize[1]);
 		}
 		
 		if(b.unlit !== unlintSet)
@@ -523,7 +525,7 @@ Renderer.prototype.draw = function(batchManager)
 			
 			gl.bindBuffer(gl.ARRAY_BUFFER, point.verticesBufferId);
 			gl.vertexAttribPointer(currentProgram.positionVertex, 3, gl.FLOAT, false, point.vertexSize, 0);
-			gl.vertexAttribPointer(currentProgram.normalVertex, 3, gl.FLOAT, false, point.vertexSize, 0); // 3 components x 4 bytes per float		
+			gl.vertexAttribPointer(currentProgram.normalVertex, 3, gl.FLOAT, false, point.vertexSize, 0);
 			gl.vertexAttribPointer(currentProgram.texcoord, 2, gl.FLOAT, false, point.vertexSize, 0);
 			
 			gl.drawArrays(gl.LINES, 0, point.count);
