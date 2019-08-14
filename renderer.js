@@ -54,12 +54,6 @@ function Renderer()
 	this.forceUseBlend = null; // null - set to batch decide, true - always use blend, false - never use blending
 }
 
-Renderer.prototype.resize = function(w, h)
-{
-	this.screenSize[0] = w;
-	this.screenSize[1] = h;
-}
-
 Renderer.prototype.loadShaders = function(id, vertexSource, fragmentSource, isInstance)
 {
 	let gl = this.contextGL.gl;
@@ -228,6 +222,7 @@ Renderer.prototype.draw = function(batchManager)
 	let currentModelBufferId	 	= null;
 	let currentColorBufferId 		= null;
 	let currentTextureId 			= null;
+
 	let blendEnabled 				= false;
 	let cullFaceEnabled 			= false;
 	let inverseCullFace 			= false;
@@ -278,11 +273,11 @@ Renderer.prototype.draw = function(batchManager)
 			billboardSet = b.isBillboard;
 			billboardSizeSet = b.billboardSize;
 			billboardRotSet = b.billboardRotation;
+
 			// gl.uniform1f(currentProgram.billboardSize, billboardSet ? 1.0 : 0.0);
 			gl.uniform1f(currentProgram.billboardSizeUniform, billboardSizeSet ? 1.0 : 0.0);
 			gl.uniform1f(currentProgram.billboardRotUniform, billboardRotSet ? 1.0 : 0.0);
 			
-
 			gl.uniform2f(currentProgram.screenUniform, this.screenSize[0], this.screenSize[1]);			
 		}
 		
@@ -341,14 +336,24 @@ Renderer.prototype.draw = function(batchManager)
 		// Vertex Size = (2 * (vertex & normal) + 2 * nom) * 3 components (x, y, z) * 4 bytes (float)
 		let vertexSize = (3 + 3 + 2) * 4;
 		
-		if(currentVertexBufferId !== b.mesh.verticesBufferId)
+		if(currentVertexBufferId !== b.geometry.verticesBufferId)
 		{
-			gl.bindBuffer(gl.ARRAY_BUFFER, b.mesh.verticesBufferId);
-			gl.vertexAttribPointer(currentProgram.positionVertex, 3, gl.FLOAT, false, vertexSize, 0);
-			gl.vertexAttribPointer(currentProgram.normalVertex, 3, gl.FLOAT, false, vertexSize, 3 * 4); // 3 components x 4 bytes per float		
-			gl.vertexAttribPointer(currentProgram.texcoord, 2, gl.FLOAT, false, vertexSize, 3 * 4 + 3 * 4);
+			gl.bindBuffer(gl.ARRAY_BUFFER, b.geometry.verticesBufferId);
 
-			currentVertexBufferId = b.mesh.verticesBufferId;
+			if(currentProgram.positionVertex >= 0 && b.geometry.lengths.position)
+			{
+				gl.vertexAttribPointer(currentProgram.positionVertex, b.geometry.lengths.position, gl.FLOAT, false, b.geometry.vertexSize, b.geometry.offsets.position);
+			}
+			if(currentProgram.normalVertex >= 0 && b.geometry.lengths.normal)
+			{
+				gl.vertexAttribPointer(currentProgram.normalVertex, b.geometry.lengths.normal, gl.FLOAT, false, b.geometry.vertexSize, b.geometry.offsets.normal); // 3 components x 4 bytes per float		
+			}
+			if(currentProgram.texcoord >= 0 && b.geometry.lengths.texcoord)
+			{
+				gl.vertexAttribPointer(currentProgram.texcoord, b.geometry.lengths.texcoord, gl.FLOAT, false, b.geometry.vertexSize, b.geometry.offsets.texcoord);
+			}
+
+			currentVertexBufferId = b.geometry.verticesBufferId;
 		}
 
 		if(b.isWireframe && this.wireFrameBuffer)
@@ -389,15 +394,15 @@ Renderer.prototype.draw = function(batchManager)
 			}
 		}
 		
-		if(currentElementBufferId !== b.mesh.elementsBufferId)
+		if(currentElementBufferId !== b.geometry.elementsBufferId)
 		{
-			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.mesh.elementsBufferId);
-			currentElementBufferId = b.mesh.elementsBufferId;
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.geometry.elementsBufferId);
+			currentElementBufferId = b.geometry.elementsBufferId;
 		}
 		
 
 		// Setup texture
-		if(b.textureName && this.resourceManager.textureMap.hasOwnProperty(b.textureName) )
+		if(b.textureName && this.resourceManager.textureMap.hasOwnProperty(b.textureName))
 		{
 			let textureId = this.resourceManager.textureMap[b.textureName];
 			
@@ -483,48 +488,14 @@ Renderer.prototype.draw = function(batchManager)
 		
 		if(currentProgram.isInstance)
 		{
-			ext.drawElementsInstanced(gl.TRIANGLES, b.mesh.count, gl.UNSIGNED_SHORT, 0, b.instanceCount);
-			// this.instanceExt.drawElementsInstancedANGLE(gl.LINES, b.mesh.count, gl.UNSIGNED_SHORT, 0, b.instanceCount);
+			ext.drawElementsInstanced(gl.TRIANGLES, b.geometry.count, gl.UNSIGNED_SHORT, 0, b.instanceCount);
 		}
 		else
 		{
-			gl.drawElements(gl.TRIANGLES, b.mesh.count, gl.UNSIGNED_SHORT, 0);
-			// gl.drawElements(gl.LINES, b.mesh.count, gl.UNSIGNED_SHORT, 0);
-		}
-	}
-
-	// Draw Lines
-	if(batchManager.lines.length > 0)
-	{
-		currentProgram = this.lineRendererProgram;
-		_enableAttribs.call(this, currentProgram.attribs);
-		gl.useProgram(currentProgram.program);
-
-		gl.uniform2f(currentProgram.screenUniform, this.screenSize[0], this.screenSize[1]);
-
-		for(let i =0 ; i < batchManager.lines.length; i++)
-		{
-			let l = batchManager.lines[i];
-			
-			mat4.identity(mv);
-			mat4.identity(mvp);
-			mat4.multiply(mv, v, l.transform);
-			mat4.multiply(mvp, p, mv);
-			gl.uniform4fv(currentProgram.colorUniform, l.color);
-
-			// gl.uniformMatrix4fv(currentProgram.modelViewUniform, false, mv);
-			gl.uniformMatrix4fv(currentProgram.modelViewProjectionUniform, false, mvp);
-			
-			gl.bindBuffer(gl.ARRAY_BUFFER, l.verticesBufferId);
-			gl.vertexAttribPointer(currentProgram.positionVertex, 4, gl.FLOAT, false, l.vertexSize, 0);
-			gl.vertexAttribPointer(currentProgram.normalVertex, 4, gl.FLOAT, false, l.vertexSize, 16); // 4 components x 4 bytes per float		
-			
-			gl.drawArrays(gl.TRIANGLE_STRIP, 0, l.count);
-			// gl.drawArrays(gl.LINE_STRIP, 0, l.count);
+			gl.drawElements(gl.TRIANGLES, b.geometry.count, gl.UNSIGNED_SHORT, 0);
 		}
 	}
 	
-
 	// Draw Points
 	if(batchManager.points.length > 0)
 	{
@@ -591,12 +562,13 @@ Renderer.prototype.draw = function(batchManager)
 Renderer.prototype.setViewport = function(x, y, width, height, willDraw = false)
 {
 	let gl = this.contextGL.gl;
+	this.screenSize[0] = width;
+	this.screenSize[1] = height;
 	if(gl)
 	{
 		gl.viewport(x, y, width, height);
 	}
 }
-
 
 Renderer.prototype.clearForceBlending = function()
 {
@@ -673,7 +645,7 @@ Renderer.prototype.loadWireframeBuffer = function(sizeBytes = Math.pow(2, 16))
 
 	let buffer = new Float32Array(trianglesCount * 3 * 3);
 
-	for(let i =0; i < trianglesCount; i++)
+	for(let i = 0; i < trianglesCount; i++)
 	{
 		// First triangle
 		buffer[i * 9 + 0] = 1.0;
@@ -709,7 +681,7 @@ Renderer.prototype.load = function()
 
 	this.loadShaders(Renderer.DEFAULT_WIREFRAME_PROGRAM_ID, Shaders.WIREFRAME_VERTEX_SHADER_SOURCE, Shaders.WIREFRAME_FRAGMENT_SHADER_SOURCE, false);
 
-	this.loadShaders(Renderer.LINE_RENDERER_ID, Shaders.LINE_INSTANCE_VERTEX_SHADER_SOURCE, Shaders.LINE_FRAGMENT_SHADER_SOURCE, false);
+	this.loadShaders(Renderer.LINE_RENDERER_ID, Shaders.LINE_INSTANCE_VERTEX_SHADER_SOURCE, Shaders.LINE_FRAGMENT_SHADER_SOURCE, true);
 
 	if(this.contextGL.hasInstancing)
 	{

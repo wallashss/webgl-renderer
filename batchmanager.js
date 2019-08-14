@@ -35,7 +35,7 @@ BatchManager.prototype.getBatches = function()
 	return this;
 }
 
-BatchManager.prototype.addInstances = function(mesh, matrices, colors, options = {})
+BatchManager.prototype.addInstances = function(geometry, matrices, colors, options = {})
 {	
 	if(!matrices)
 	{
@@ -52,21 +52,21 @@ BatchManager.prototype.addInstances = function(mesh, matrices, colors, options =
 	if(matrices.constructor === WebGLBuffer)
 	{
 		// go on
-		return _addInstances.call(this, mesh, matrices, colors, options);
+		return _addInstances.call(this, geometry, matrices, colors, options);
 	}
 	if((matrices.constructor != Float32Array || colors.constructor != Uint8Array) && 
 		colors.length !== matrices.length)
 	{
-		console.log("Colors and instances must have same length");
+		console.error("Colors and instances must have same length");
 		return;
 	}
 	if((matrices.constructor === Float32Array || colors.constructor === Uint8Array) && 
 		(matrices.length / 16 !== colors.length /4 ))
 	{
-		console.log("Colors and instances must have same length");
+		console.error("Colors and instances must have same length");
 		return;
 	}
-	return _addInstances.call(this, mesh, matrices, colors, options);
+	return _addInstances.call(this, geometry, matrices, colors, options);
 }
 
 //  TODO: Clear memeory resources
@@ -109,7 +109,7 @@ BatchManager.prototype.addBatch = function(b, idx = null)
 	return null;
 }
 
-BatchManager.prototype.addPointMesh = function(meshId, points, colors, transform, textureName = null, unlit = false, isBillboard = false)
+BatchManager.prototype.addPointMesh = function(geometry, points, colors, transform, textureName = null, unlit = false, isBillboard = false)
 {
 	let gl = this.contextGL.gl;
 	const outIdx = this.generateId();
@@ -127,7 +127,6 @@ BatchManager.prototype.addPointMesh = function(meshId, points, colors, transform
 	gl.bindBuffer(gl.ARRAY_BUFFER, colorBufferId);
 
 	let useBlending = false;
-	// let colorsCount = colors.length / 4;
 	for(let i = 0; i < pointsCount; i++)
 	{
 		if(colors[i*4+3] < 255)
@@ -137,9 +136,8 @@ BatchManager.prototype.addPointMesh = function(meshId, points, colors, transform
 		}
 	}
 	gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
-
 	
-	let b = {mesh : meshId,
+	let b = {geometry : geometry,
 		modelBufferId: pointsBufferId,
 		instanceCount: pointsCount,
 		colorBufferId: colorBufferId,
@@ -148,7 +146,6 @@ BatchManager.prototype.addPointMesh = function(meshId, points, colors, transform
 		visible: true,
 		firstIdx: outIdx,
 		transform: transform || mat4.create(),
-		// pickBufferId: pickBufferId,
 		useBlending: useBlending,
 		unlit : unlit || false,
 		isBillboard: true,
@@ -202,8 +199,8 @@ BatchManager.prototype.getSharedMatrices = function(idx)
 
 		return b.modelBufferId;
 	}
-	return null;
 
+	return null;
 }
 
 BatchManager.prototype.addObjectInstances = function(vertices, elements, colors, matrices, textureName, unlit, isBillboard)
@@ -364,32 +361,6 @@ BatchManager.prototype.addPoints = function(vertices, color, transform)
 				transform: transform});
 }
 
-// BatchManager.prototype.addLines = function(vertices, color, width)
-// {
-// 	let verticesBufferId = gl.createBuffer();
-	
-// 	gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
-// 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);	
-	
-// 	if(!color)
-// 	{
-// 		color = vec4.fromValues(1.0, 1.0, 1.0, 1.0);
-// 	}
-	
-// 	this.lines.push({verticesBufferId: verticesBufferId,
-// 				count: vertices.length / 3,
-// 				vertexSize: 3 * 4, // 3 components * 4 bytes per float
-// 				color: color});
-// }
-
-BatchManager.prototype.addLines = function(verticesBufferId, lineCount, transform = mat4.create(), color = new Uint8Array([255, 255, 255, 255]))
-{	
-	this.lines.push({verticesBufferId: verticesBufferId,
-				count: lineCount * 4 ,
-				transform: transform,
-				color: color,
-				vertexSize: 8 * 4});
-}
 
 BatchManager.prototype.clearBatches = function()
 {
@@ -430,20 +401,23 @@ function vec4fToVec4b(v)
 	return out;
 }
 
-function _addInstances(mesh, matrices, colors, options)
+function _addInstances(geometry, matrices, colors, options)
 {
 	let gl = this.contextGL.gl;
 	// const outIdx = this.generateId();
 	let out = [];
 
 
-	let isBillboard = options.isBillboard || options.billboard || false;
-	let billboardSize = options.billboardSize || false;
-	let billboardRot = options.billboardRotation || false;
-	let textureName = options.textureName || null;
+	let isBillboard 	= options.isBillboard || options.billboard || false;
+	let billboardSize 	= options.billboardSize || false;
+	let billboardRot 	= options.billboardRotation || false;
+	let textureName 	= options.textureName || null;
 	let inverseCullFace = options.inverseCullFace || false;
-	let cullFace = inverseCullFace || options.cullFace || false;
-	let unlit = options.hasOwnProperty("unlit") ? options.unlit : false;
+	let cullFace 		= inverseCullFace || options.cullFace || false;
+	let visible 		= options.visible === false ? false : true;
+	let unlit 			= options.hasOwnProperty("unlit") ? options.unlit : false;
+
+	let programId 		= options.programId || null; 
 
 	let useBlending = false;
 	let useDepthMask = false;
@@ -456,19 +430,19 @@ function _addInstances(mesh, matrices, colors, options)
 			billboardSize: billboardSize,
 			billboardRotation: billboardRot,
 			isWireframe: false,
-			mesh: mesh,
+			geometry: geometry,
 			textureName: textureName,
 			useBlending: useBlending,
 			useDepthMask: useDepthMask,			
 			unlit : unlit || false,
-			visible: true
+			visible: visible
 			}
+	
 	if(!this.contextGL.hasInstancing)
 	{
 		const outIdx = this.generateId();
 		for(let i = 0; i < matrices.length; i++)
 		{
-			// let idx = outIdx + i; 
 			let idx = this.generateId();
 			out.push(idx);
 			let t = mat4.clone(matrices[i]);
@@ -595,7 +569,7 @@ function _addInstances(mesh, matrices, colors, options)
 		b.offsetMap = offsetMap;
 
 		b.isInstance = true;
-		b.programId = BatchManager.INSTANCE_PROGRAM_ID;
+		b.programId =  programId || BatchManager.INSTANCE_PROGRAM_ID;
 		
 		for(let i = 0 ; i < out.length; i++)
 		{

@@ -5,6 +5,7 @@
 	"author": "wallashss",
 	"scripts": 
 	{
+		"build-shaders": "node builshaders",
 		"build" : "browserify build.js | uglifyjs -mc > webglrenderer.min.js",
 		"build-debug" : "browserify --debug build.js -o  webglrenderer.min.js"
 	},

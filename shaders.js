@@ -112,18 +112,13 @@ void main (void)
     }
 	else if(billboardSize > 0.0)
     {
-		mat4 m = model;
+		mat3 m = mat3(model);
 		vec4 pos = model[3];
-		m[3] = vec4(0, 0, 0, 1);
-
-        //gl_Position = projection * (modelView * model * vec4(0, 0, 0, 1.0) + model * vec4(position, 0));
-		//gl_Position = projection * vec4(position, 1);
-		//gl_Position = projection * (modelView * model * vec4(0, 0, 0, 1.0) + vec4(position, 0));
 
 		gl_Position = modelViewProjection * pos;
-		gl_Position /= gl_Position.w;
-		gl_Position.xy += position.xy / screen;
-
+		gl_Position.xy /= gl_Position.w;
+		gl_Position.xy += (m * position.xyz).xy / screen;
+		gl_Position.xy *= gl_Position.w;
 
         vNormal = normalize(mat3(modelView) * normal);
         vTexcoord = texcoord;
@@ -153,29 +148,50 @@ exports.LINE_INSTANCE_VERTEX_SHADER_SOURCE  =
 `
 attribute vec4 position;
 attribute vec4 normal;
+attribute highp mat4 model;
+attribute highp vec4 colorInstance;
 
+varying vec4 currentColor;
 uniform highp vec2 screen;
 uniform highp mat4 modelViewProjection;
 
 
 void main (void)
 {
-	vec4 a = modelViewProjection * vec4(position.xyz, 1.0);
-	vec4 b = modelViewProjection * vec4(normal.xyz, 1.0);
+	vec4 a = modelViewProjection * model * vec4(position.xyz, 1.0);
+	vec4 b = modelViewProjection * model * vec4(normal.xyz, 1.0);
+	
+	// vec4 a = modelViewProjection * vec4(position.xyz, 1.0);
+	// vec4 b = modelViewProjection * vec4(normal.xyz, 1.0);
 
 	a.xy /= a.w;
 	b.xy /= b.w;
 
 	vec2 diff = a.xy - b.xy;
-	vec2 perpendicular = vec2(diff.y, -diff.x);
+	vec2 perpendicular = normalize(vec2(diff.y, -diff.x));
 	
 	a.xy += perpendicular * normal.w / screen ;
 
 	a.xy *= a.w;
 
+	currentColor = colorInstance;
+	// currentColor = vec4(1, 0, 0, 1);
+
 	gl_Position = a;
 }
 `
+
+exports.LINE_FRAGMENT_SHADER_SOURCE = 
+`
+precision mediump float;
+varying vec4 currentColor;
+void main(void)
+{
+    gl_FragColor = currentColor;
+	// gl_FragColor = vec4(1, 0, 0, 1);
+}
+`
+
 exports.WIREFRAME_INSTANCE_VERTEX_SHADER_SOURCE =
 `
 attribute vec3 position;
@@ -274,15 +290,7 @@ void main (void)
 }
 `
 
-exports.LINE_FRAGMENT_SHADER_SOURCE = 
-`
-precision mediump float;
-uniform vec4 color;
-void main(void)
-{
-    gl_FragColor = color;
-}
-`
+
 
 exports.FRAGMENT_SHADER_SOURCE = 
 `

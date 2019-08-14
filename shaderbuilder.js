@@ -21,7 +21,6 @@ function createProgram(vertexSource, fragmentSource, gl)
     let WebGL2RenderingContext = window.WebGL2RenderingContext;
     if(gl.constructor === WebGL2RenderingContext)
     {        
-        // header += "#version 300 es \n";
         header += "#define HAS_WEBGL_2 \n";
     }
     if(gl.getExtension('OES_standard_derivatives'))
