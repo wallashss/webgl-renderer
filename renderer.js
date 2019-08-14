@@ -11,8 +11,6 @@ function Renderer()
 {	
 	this.contextGL = null;
 	this.mainProgram = null;
-	this.lineRendererProgram = null;
-	this.programsMap = {};
 
 	this.wireFrameBuffer = null;
 	
@@ -21,6 +19,8 @@ function Renderer()
 	this.points = [];
 
 	this.resourceManager = null;
+	this.programManager = null;
+
 	this.screenSize = new Float32Array(2);
 	
 
@@ -52,130 +52,6 @@ function Renderer()
 	this.disableClearColor = false;
 
 	this.forceUseBlend = null; // null - set to batch decide, true - always use blend, false - never use blending
-}
-
-Renderer.prototype.loadShaders = function(id, vertexSource, fragmentSource, isInstance)
-{
-	let gl = this.contextGL.gl;
-	let programId = id ? id : "_default";
-	gl.useProgram(null);
-
-	let program = ShaderBuilder.createProgram(vertexSource, fragmentSource, gl);
-	
-	if(program)
-	{
-		gl.useProgram(program);
-		
-		let positionVertex = gl.getAttribLocation(program, "position");
-		
-		let normalVertex = gl.getAttribLocation(program, "normal");
-		
-		let texcoord = gl.getAttribLocation(program, "texcoord");
-
-		let model = gl.getAttribLocation(program, "model");
-
-		let colorInstance = gl.getAttribLocation(program, "colorInstance");
-
-		let translation = gl.getAttribLocation(program, "translation");
-
-		let barycentric = gl.getAttribLocation(program, "barycentric");
-
-		// let pickingInstance = gl.getAttribLocation(program, "pickingInstance");
-
-		let attribs = [];
-		if(positionVertex >= 0)
-		{
-			attribs.push(positionVertex);
-		}
-		if(normalVertex >= 0)
-		{
-			attribs.push(normalVertex);
-		}
-
-		if(texcoord >= 0)
-		{
-			attribs.push(texcoord);
-		}
-
-		if(colorInstance >= 0)
-		{
-			attribs.push(colorInstance);
-		}
-
-		if(translation >= 0)
-		{
-			attribs.push(translation);
-		}
-
-		if(barycentric >= 0)
-		{
-			attribs.push(barycentric);
-		}
-
-		let modelAttribs = []
-
-		if(model >= 0)
-		{
-			attribs.push(model);
-			modelAttribs.push(model);
-			attribs.push(model+1);
-			modelAttribs.push(model+1);
-			attribs.push(model+2);
-			modelAttribs.push(model+2);
-			attribs.push(model+3);
-			modelAttribs.push(model+3);
-		}
-		
-		
-		let projection = gl.getUniformLocation(program, "projection");
-		let modelViewProjection = gl.getUniformLocation(program, "modelViewProjection");
-		let modelViewUniform = gl.getUniformLocation(program, "modelView");
-		let normalMatrixUniform = gl.getUniformLocation(program, "normalMatrix");
-		let lightPositionUniform = gl.getUniformLocation(program, "lightPosition");
-		let colorUniform = gl.getUniformLocation(program, "color");
-		let useTextureUniform = gl.getUniformLocation(program, "useTexture");
-		let unlitUniform = gl.getUniformLocation(program, "unlit");
-		let isBillboardUniform = gl.getUniformLocation(program, "isBillboard");
-		let billboardSizeUniform = gl.getUniformLocation(program, "billboardSize");
-		let billboardRotUniform = gl.getUniformLocation(program, "billboardRotation");
-		let texSamplerUniform = gl.getUniformLocation(program, "texSampler");
-		let screenUniform = gl.getUniformLocation(program, "screen");
-
-		let newProgram = {program: program,
-				positionVertex: positionVertex,
-				normalVertex: normalVertex,
-				texcoord: texcoord,
-				model: model,
-				colorInstance: colorInstance,
-				translation: translation,
-				barycentric: barycentric,
-				projectionUniform: projection,
-				modelViewProjectionUniform: modelViewProjection,
-				modelViewUniform: modelViewUniform,
-				normalMatrixUniform: normalMatrixUniform,
-				lightPositionUniform: lightPositionUniform,
-				colorUniform: colorUniform,
-				useTextureUniform: useTextureUniform,
-				unlitUniform: unlitUniform,
-				billboardSizeUniform: billboardSizeUniform,
-				billboardRotUniform: billboardRotUniform,
-				isBillboardUniform: isBillboardUniform,
-				texSamplerUniform: texSamplerUniform,
-				screenUniform: screenUniform,
-				id: programId,
-				attribs: attribs,
-				modelAttribs: modelAttribs,
-				isInstance: isInstance,
-				};
-
-		this.addProgram(newProgram, programId)
-		gl.useProgram(null);
-	}
-}
-
-Renderer.prototype.addProgram = function(newProgram, programId)
-{
-	this.programsMap[programId] = newProgram;
 }
 
 Renderer.prototype.draw = function(batchManager)
@@ -249,7 +125,8 @@ Renderer.prototype.draw = function(batchManager)
 			program = this.mainProgram;
 		}
 
-		program = this.programsMap[b.programId];
+		// program = this.programsMap[b.programId];
+		program = this.programManager.getProgram(b.programId);
 
 		if(program === null)
 		{
@@ -561,17 +438,6 @@ Renderer.prototype.draw = function(batchManager)
 	return true;
 }
 
-Renderer.prototype.setViewport = function(x, y, width, height, willDraw = false)
-{
-	let gl = this.contextGL.gl;
-	this.screenSize[0] = width;
-	this.screenSize[1] = height;
-	if(gl)
-	{
-		gl.viewport(x, y, width, height);
-	}
-}
-
 Renderer.prototype.clearForceBlending = function()
 {
 	this.forceUseBlend = null;
@@ -635,6 +501,11 @@ Renderer.prototype.setResourceManager = function(manager)
 	this.resourceManager = manager;
 }
 
+Renderer.prototype.setProgramManager = function(manager)
+{
+	this.programManager = manager;
+}
+
 Renderer.prototype.setDummyTexture = function(texture)
 {
 	this.dummyTexture = texture;
@@ -679,22 +550,22 @@ Renderer.prototype.load = function()
 	// gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 
 	// Load shaders
-	this.loadShaders(Renderer.DEFAULT_PROGRAM_ID, Shaders.VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, false);
+	// this.loadShaders(Renderer.DEFAULT_PROGRAM_ID, Shaders.VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, false);
 
-	this.loadShaders(Renderer.DEFAULT_WIREFRAME_PROGRAM_ID, Shaders.WIREFRAME_VERTEX_SHADER_SOURCE, Shaders.WIREFRAME_FRAGMENT_SHADER_SOURCE, false);
+	// this.loadShaders(Renderer.DEFAULT_WIREFRAME_PROGRAM_ID, Shaders.WIREFRAME_VERTEX_SHADER_SOURCE, Shaders.WIREFRAME_FRAGMENT_SHADER_SOURCE, false);
 
-	this.loadShaders(Renderer.LINE_RENDERER_ID, Shaders.LINE_INSTANCE_VERTEX_SHADER_SOURCE, Shaders.LINE_FRAGMENT_SHADER_SOURCE, true);
+	// this.loadShaders(Renderer.LINE_RENDERER_ID, Shaders.LINE_INSTANCE_VERTEX_SHADER_SOURCE, Shaders.LINE_FRAGMENT_SHADER_SOURCE, true);
 
-	if(this.contextGL.hasInstancing)
-	{
-		this.loadShaders(Renderer.INSTANCE_PROGRAM_ID, Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, true);
+	// if(this.contextGL.hasInstancing)
+	// {
+	// 	this.loadShaders(Renderer.INSTANCE_PROGRAM_ID, Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, true);
 
-		this.loadShaders(Renderer.POINTMESH_PROGRAM_ID, Shaders.INSTANCE_POINT_MESH_VERTEX_SHADER, Shaders.FRAGMENT_SHADER_SOURCE, true);
+	// 	this.loadShaders(Renderer.POINTMESH_PROGRAM_ID, Shaders.INSTANCE_POINT_MESH_VERTEX_SHADER, Shaders.FRAGMENT_SHADER_SOURCE, true);
 
-		this.loadShaders(Renderer.INSTANCE_WIREFRAME_PROGRAM_ID, Shaders.WIREFRAME_INSTANCE_VERTEX_SHADER_SOURCE, Shaders.WIREFRAME_FRAGMENT_SHADER_SOURCE, true);
-	}
+	// 	this.loadShaders(Renderer.INSTANCE_WIREFRAME_PROGRAM_ID, Shaders.WIREFRAME_INSTANCE_VERTEX_SHADER_SOURCE, Shaders.WIREFRAME_FRAGMENT_SHADER_SOURCE, true);
+	// }
 
-	this.lineRendererProgram = this.programsMap[Renderer.LINE_RENDERER_ID];
+	// this.lineRendererProgram = this.programsMap[Renderer.LINE_RENDERER_ID];
 	
 	// Set clear color
 	gl.clearColor(this.backgroundColor.r, this.backgroundColor.g, this.backgroundColor.b, this.backgroundColor.a);
@@ -730,6 +601,16 @@ Renderer.prototype.load = function()
 	return true;
 }
 
+Renderer.prototype.setViewport = function(x, y, width, height, willDraw = false)
+{
+	let gl = this.contextGL.gl;
+	this.screenSize[0] = width;
+	this.screenSize[1] = height;
+	if(gl)
+	{
+		gl.viewport(x, y, width, height);
+	}
+}
 
 Renderer.prototype.setViewMatrix = function(viewMatrix)
 {

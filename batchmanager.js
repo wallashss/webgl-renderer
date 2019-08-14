@@ -292,8 +292,6 @@ BatchManager.prototype.updateTransform = function(idx, transform)
 		}
 		else
 		{
-			// let offset =  idx - b.firstIdx;
-			// let c = vec4fToVec4b(color); 
 			let offset = b.offsetMap[idx];
 			gl.bindBuffer(gl.ARRAY_BUFFER, b.modelBufferId);
 			gl.bufferSubData(gl.ARRAY_BUFFER, offset * 16 * 4, transform);
