@@ -1,7 +1,4 @@
-"use strict"
-
-const Shaders = require("./shaders");
-const ShaderBuilder = require("./shaderbuilder");
+"use strict";
 
 const glMatrix = require("gl-matrix");
 const vec3 = glMatrix.vec3;
@@ -211,9 +208,6 @@ Renderer.prototype.draw = function(batchManager)
 		gl.uniformMatrix4fv(currentProgram.modelViewUniform, false, mv);
 		gl.uniformMatrix4fv(currentProgram.modelViewProjectionUniform, false, mvp);
 		gl.uniformMatrix4fv(currentProgram.normalMatrixUniform, false, normalMatrix);
-		
-		// Vertex Size = (2 * (vertex & normal) + 2 * nom) * 3 components (x, y, z) * 4 bytes (float)
-		let vertexSize = (3 + 3 + 2) * 4;
 		
 		if(currentVertexBufferId !== b.geometry.verticesBufferId)
 		{
@@ -544,28 +538,6 @@ Renderer.prototype.loadWireframeBuffer = function(sizeBytes = Math.pow(2, 16))
 Renderer.prototype.load = function()
 {
 	let gl = this.contextGL.gl;
-
-	this.hasInstancing = this.contextGL.hasInstancing;
-
-	// gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-
-	// Load shaders
-	// this.loadShaders(Renderer.DEFAULT_PROGRAM_ID, Shaders.VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, false);
-
-	// this.loadShaders(Renderer.DEFAULT_WIREFRAME_PROGRAM_ID, Shaders.WIREFRAME_VERTEX_SHADER_SOURCE, Shaders.WIREFRAME_FRAGMENT_SHADER_SOURCE, false);
-
-	// this.loadShaders(Renderer.LINE_RENDERER_ID, Shaders.LINE_INSTANCE_VERTEX_SHADER_SOURCE, Shaders.LINE_FRAGMENT_SHADER_SOURCE, true);
-
-	// if(this.contextGL.hasInstancing)
-	// {
-	// 	this.loadShaders(Renderer.INSTANCE_PROGRAM_ID, Shaders.INSTANCE_VERTEX_SHADER_SOURCE, Shaders.FRAGMENT_SHADER_SOURCE, true);
-
-	// 	this.loadShaders(Renderer.POINTMESH_PROGRAM_ID, Shaders.INSTANCE_POINT_MESH_VERTEX_SHADER, Shaders.FRAGMENT_SHADER_SOURCE, true);
-
-	// 	this.loadShaders(Renderer.INSTANCE_WIREFRAME_PROGRAM_ID, Shaders.WIREFRAME_INSTANCE_VERTEX_SHADER_SOURCE, Shaders.WIREFRAME_FRAGMENT_SHADER_SOURCE, true);
-	// }
-
-	// this.lineRendererProgram = this.programsMap[Renderer.LINE_RENDERER_ID];
 	
 	// Set clear color
 	gl.clearColor(this.backgroundColor.r, this.backgroundColor.g, this.backgroundColor.b, this.backgroundColor.a);
