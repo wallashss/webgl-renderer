@@ -229,12 +229,6 @@ Renderer.prototype.draw = function(batchManager)
 			currentVertexBufferId = b.geometry.verticesBufferId;
 		}
 
-		if(b.isWireframe && this.wireFrameBuffer)
-		{
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.wireFrameBuffer);
-			gl.vertexAttribPointer(currentProgram.barycentric, 3, gl.FLOAT, false, 3 * 4, 0);
-		}
-
 		if(currentProgram.isInstance)
 		{
 			if(currentModelBufferId !== b.modelBufferId && b.isPointMesh)
@@ -266,6 +260,12 @@ Renderer.prototype.draw = function(batchManager)
 				currentColorBufferId = b.colorBufferId;
 			}
 		}
+
+		if(b.isWireframe && this.wireFrameBuffer)
+		{
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.wireFrameBuffer);
+			gl.vertexAttribPointer(currentProgram.barycentric, 3, gl.FLOAT, false, 3 * 4, 0);
+		}
 		
 		if(currentElementBufferId !== b.geometry.elementsBufferId)
 		{
@@ -275,9 +275,9 @@ Renderer.prototype.draw = function(batchManager)
 		
 
 		// Setup texture
-		if(b.textureName && this.resourceManager.textureMap.hasOwnProperty(b.textureName))
+		if(b.textureName && program.texSamplerUniform && this.resourceManager.hasTexture(b.textureName))
 		{
-			let textureId = this.resourceManager.textureMap[b.textureName];
+			let textureId = this.resourceManager.getTexture(b.textureName);
 			
 			if(currentTextureId !== textureId)
 			{
@@ -366,40 +366,6 @@ Renderer.prototype.draw = function(batchManager)
 		else
 		{
 			gl.drawElements(gl.TRIANGLES, b.geometry.count, gl.UNSIGNED_SHORT, 0);
-		}
-	}
-	
-	// Draw Points
-	if(batchManager.points.length > 0)
-	{
-		currentProgram = this.mainProgram;
-		_enableAttribs.call(this, currentProgram.attribs);
-		gl.useProgram(currentProgram.program);		
-
-		gl.uniform1f(currentProgram.unlitUniform, 1.0);
-		
-		for(let i = 0; i < batchManager.points.length; i++)
-		{
-			let point = this.points[i];
-
-			mat4.copy(m, point.transform);
-			mat4.multiply(mv, v, m);
-			mat4.multiply(mvp, p, mv);
-
-			gl.uniformMatrix4fv(currentProgram.modelViewUniform, false, mv);
-			gl.uniformMatrix4fv(currentProgram.modelViewProjectionUniform, false, mvp);
-
-			gl.uniform1i(currentProgram.texSamplerUniform, 0);
-			gl.bindTexture(gl.TEXTURE_2D, this.dummyTexture);
-			gl.uniform1f(currentProgram.useTextureUniform, 0.0);
-			gl.uniform4fv(currentProgram.colorUniform, point.color);
-			
-			gl.bindBuffer(gl.ARRAY_BUFFER, point.verticesBufferId);
-			gl.vertexAttribPointer(currentProgram.positionVertex, 3, gl.FLOAT, false, point.vertexSize, 0);
-			gl.vertexAttribPointer(currentProgram.normalVertex, 3, gl.FLOAT, false, point.vertexSize, 0);
-			gl.vertexAttribPointer(currentProgram.texcoord, 2, gl.FLOAT, false, point.vertexSize, 0);
-			
-			gl.drawArrays(gl.LINES, 0, point.count);
 		}
 	}
 

@@ -11,6 +11,17 @@ function ResourceManager(context)
 	this.textureMap = {};
 }
 
+
+ResourceManager.prototype.getTexture = function(id)
+{
+	return this.textureMap[id] || null;
+}
+
+ResourceManager.prototype.hasTexture = function(id)
+{
+	return this.textureMap.hasOwnProperty(id);
+}
+
 ResourceManager.prototype.setTexture = function(textureName, texture, isNearest)
 {
 	let gl = this.gl;

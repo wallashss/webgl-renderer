@@ -11,8 +11,6 @@ function BatchManager(contextGL)
 {
 	this.batchesKeys = [];
 	this.batches = {};
-	this.lines = [];
-	this.points = [];
 
 	this.contextGL = contextGL;
 
@@ -328,38 +326,6 @@ BatchManager.prototype.setWireframe = function(idx, wireframe)
 	}
 }
 
-BatchManager.prototype.addPoints = function(vertices, color, transform)
-{
-	let verticesBufferId = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
-
-	if(vertices.constructor === Float32Array)
-	{
-		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-	}
-	else
-	{
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-	}
-	
-	if(!transform)
-	{
-		transform = mat4.create();
-	}
-	
-	if(!color)
-	{
-		color = vec4.fromValues(1.0, 1.0, 1.0, 1.0);
-	}
-	
-	this.points.push({verticesBufferId: verticesBufferId,
-				count: vertices.length / 3,
-				vertexSize: 4, // 3 components * 4 bytes per float
-				color: color,
-				transform: transform});
-}
-
-
 BatchManager.prototype.clearBatches = function()
 {
 	let gl = this.contextGL.gl;
@@ -376,7 +342,7 @@ BatchManager.prototype.clearBatches = function()
 
 BatchManager.prototype.hasBatches = function()
 {
-	if(this.batchesKeys.length === 0 && this.lines.length === 0 && this.points.length === 0)
+	if(this.batchesKeys.length === 0)
 	{
 		return false;
 	}
@@ -439,6 +405,26 @@ function _addInstances(geometry, matrices, colors, options)
 	if(!this.contextGL.hasInstancing)
 	{
 		const outIdx = this.generateId();
+
+		if(matrices.constructor === Float32Array)
+		{
+			// Replace to vector
+			let temp = [];
+
+			let length = matrices.length / 16;
+
+			for(let i = 0; i < length; i++)
+			{
+				let t = new Float32Array(16);
+				for(let j = 0; j < 16; j++)
+				{
+
+				}
+				temp.push(t);
+			}
+			matrices = temp;
+		}
+		
 		for(let i = 0; i < matrices.length; i++)
 		{
 			let idx = this.generateId();
