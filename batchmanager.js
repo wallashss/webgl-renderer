@@ -5,6 +5,7 @@ const vec3 = glMatrix.vec3;
 const vec4 = glMatrix.vec4;
 const mat4 = glMatrix.mat4;
 
+
 let DEFAULT_NEXT_ID = 1;
 
 function BatchManager(contextGL)
@@ -59,7 +60,7 @@ BatchManager.prototype.addInstances = function(geometry, matrices, colors, optio
 		return;
 	}
 	if((matrices.constructor === Float32Array || colors.constructor === Uint8Array) && 
-		(matrices.length / 16 !== colors.length /4 ))
+		(matrices.length / 16 !== colors.length / 4 ))
 	{
 		console.error("Colors and instances must have same length");
 		return;
@@ -107,9 +108,15 @@ BatchManager.prototype.addBatch = function(b, idx = null)
 	return null;
 }
 
-BatchManager.prototype.addPointMesh = function(geometry, points, colors, transform, textureName = null, unlit = false, isBillboard = false)
+BatchManager.prototype.addPointMesh = function(geometry, points, colors, transform, options)
 {
 	let gl = this.contextGL.gl;
+
+	let textureName = options.textureName || null;
+	let unlit = options.unlit || false;
+	let isBillboard = options.isBillboard || false;
+	let programId = options.programId;
+
 	const outIdx = this.generateId();
 
 	let pointsBufferId = gl.createBuffer();
@@ -146,48 +153,47 @@ BatchManager.prototype.addPointMesh = function(geometry, points, colors, transfo
 		transform: transform || mat4.create(),
 		useBlending: useBlending,
 		unlit : unlit || false,
-		isBillboard: true,
+		isBillboard: isBillboard,
 		isPointMesh: true,
-		programId: BatchManager.POINTMESH_PROGRAM_ID,
+		programId: programId,
 		isInstance: true}
 
 	this.batches[outIdx] = b;	
 	this.batchesKeys.push(outIdx);
 	return outIdx;
-	
 }
 
-BatchManager.prototype.addObject = function(vertices, elements, color, transform, textureName, unlit)
-{
-	let mesh = this.uploadMesh(vertices, elements);
+// BatchManager.prototype.addObject = function(vertices, elements, color, transform, textureName, unlit)
+// {
+// 	let mesh = this.uploadMesh(vertices, elements);
 
-	let t = mat4.create();
-	if(transform)
-	{
-		mat4.copy(t, transform);
-	}
+// 	let t = mat4.create();
+// 	if(transform)
+// 	{
+// 		mat4.copy(t, transform);
+// 	}
 	
-	let c = vec4.fromValues(0.8, 0.8, 0.8, 1.0);
-	if(color)
-	{
-		c = vec4.clone(color);
-	}
+// 	let c = vec4.fromValues(0.8, 0.8, 0.8, 1.0);
+// 	if(color)
+// 	{
+// 		c = vec4.clone(color);
+// 	}
 	
-	let idx = this.generateId();
+// 	let idx = this.generateId();
 	
-	let b = {mesh: mesh,
-		transform: t,
-		color: c,
-		visible: true,
-		textureName: textureName, 
-		programId: BatchManager.DEFAULT_PROGRAM_ID,
-		isInstance: false,
-		unlit: unlit || false};
+// 	let b = {mesh: mesh,
+// 		transform: t,
+// 		color: c,
+// 		visible: true,
+// 		textureName: textureName, 
+// 		programId: BatchManager.DEFAULT_PROGRAM_ID,
+// 		isInstance: false,
+// 		unlit: unlit || false};
 
-	this.batchesKeys.push(idx);
-	this.batches[idx] = b;
-	return idx;
-}
+// 	this.batchesKeys.push(idx);
+// 	this.batches[idx] = b;
+// 	return idx;
+// }
 
 BatchManager.prototype.getSharedMatrices = function(idx)
 {
@@ -436,7 +442,7 @@ function _addInstances(geometry, matrices, colors, options)
 			b.color= c;
 
 			b.isInstance = false;
-			b.programId = BatchManager.DEFAULT_PROGRAM_ID;
+			b.programId = programId;
 			
 			this.batchesKeys.push(idx);
 			this.batches[idx] = b;
@@ -553,7 +559,7 @@ function _addInstances(geometry, matrices, colors, options)
 		b.offsetMap = offsetMap;
 
 		b.isInstance = true;
-		b.programId =  programId || BatchManager.INSTANCE_PROGRAM_ID;
+		b.programId =  programId;
 		
 		for(let i = 0 ; i < out.length; i++)
 		{
@@ -574,10 +580,5 @@ BatchManager.prototype.forceUseBlending = function(blending = false)
 	}
 }
 
-BatchManager.DEFAULT_PROGRAM_ID = "_default";
-BatchManager.INSTANCE_PROGRAM_ID = "_instance";
-BatchManager.POINTMESH_PROGRAM_ID = "_pointMesh";
-BatchManager.DEFAULT_WIREFRAME_PROGRAM_ID = "_defaultWireframe";
-BatchManager.INSTANCE_WIREFRAME_PROGRAM_ID = "_instanceWireframe";
 
 module.exports = BatchManager;

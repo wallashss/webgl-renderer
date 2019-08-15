@@ -635,12 +635,5 @@ function _setAttribDivisors(attribs, size)
 	}
 	
 }
-	
-Renderer.DEFAULT_PROGRAM_ID = "_default";
-Renderer.INSTANCE_PROGRAM_ID = "_instance";
-Renderer.POINTMESH_PROGRAM_ID = "_pointMesh";
-Renderer.DEFAULT_WIREFRAME_PROGRAM_ID = "_defaultWireframe";
-Renderer.LINE_RENDERER_ID = "_lineRenderer";
-Renderer.INSTANCE_WIREFRAME_PROGRAM_ID = "_instanceWireframe";
 
 module.exports = Renderer;
