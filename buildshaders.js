@@ -3,15 +3,13 @@
 
 const fs = require("fs");
 
-const SHADERS_SOURCES_PATH = "shaders";
-const BUILD_PATH = "build/shaders.js";
-
+const SHADERS_SOURCES_PATH = `${__dirname}/shaders`;
+const BUILD_PATH = `${__dirname}/build/shaders.js`;
 
 
 let files = fs.readdirSync(SHADERS_SOURCES_PATH);
 
 let shaderSourceFiles = "'use strict'; \n";
-
 
 
 for(let i = 0; i < files.length; i++)
