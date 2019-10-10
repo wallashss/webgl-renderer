@@ -34,10 +34,10 @@ ContextGL.prototype.load = function(canvas, options = {},  version = 1)
 	this.canvas = canvas;
 	this.version = version;
 
-	// if(this.version === 2)
-	// {
-	// 	this.gl = canvas.getContext("webgl2", options);
-	// }
+	if(this.version === 2)
+	{
+		this.gl = canvas.getContext("webgl2", options);
+	}
 	
 	if(!this.gl)
 	{

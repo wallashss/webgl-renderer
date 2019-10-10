@@ -1,6 +1,6 @@
 "use strict";
 
-const Shaders = require("./shaders");
+const Shaders = require("./framebuffershaders");
 const ShaderBuilder = require("./shaderbuilder");
 const Framebuffer = require("./framebuffer");
 
