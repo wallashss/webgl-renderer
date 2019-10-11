@@ -146,6 +146,9 @@ Camera.prototype.setOrthoMode = function()
 	{
 		let projectionMatrix = this.manipulator.getProjectionMatrix();
 		this.orthoManipulator.setProjectionMatrix(projectionMatrix);
+
+		let viewMatrix = this.manipulator.getViewMatrix();
+		this.orthoManipulator.setViewMatrix(viewMatrix);
 	}
 	this.manipulator.near = this.near;
 	this.manipulator.far = this.far;

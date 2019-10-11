@@ -232,11 +232,11 @@ OrthoExamine.prototype.updateProjection = function(dt, state)
 			// }
 		}
 
-		console.log(this.padding);
-		console.log(this.origin);
-		console.log(this.bounds.left, this.bounds.right, this.bounds.top, this.bounds.bottom);
-		console.log(this.left, this.right, this.top, this.bottom);
-		console.log("====");
+		// console.log(this.padding);
+		// console.log(this.origin);
+		// console.log(this.bounds.left, this.bounds.right, this.bounds.top, this.bounds.bottom);
+		// console.log(this.left, this.right, this.top, this.bottom);
+		// console.log("====");
 
 		mat4.ortho(this.projectionMatrix, 
 				   this.bounds.left + this.origin[0], 
