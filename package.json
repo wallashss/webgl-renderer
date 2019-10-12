@@ -3,11 +3,10 @@
 	"version": "1.0.0",
 	"license": "MIT",
 	"author": "wallashss",
-	"scripts": 
-	{
-		"build-shaders": "node builshaders",
-		"build" : "browserify build.js | uglifyjs -mc > webglrenderer.min.js",
-		"build-debug" : "browserify --debug build.js -o  webglrenderer.min.js"
+	"scripts": {
+		"build-shaders": "node buildshaders",
+		"build": "browserify build.js | uglifyjs -mc > webglrenderer.min.js",
+		"build-debug": "browserify --debug build.js -o  webglrenderer.min.js"
 	},
 	"dependencies": {
 		"uglify-es": "3.0.x",
