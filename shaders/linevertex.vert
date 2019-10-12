@@ -22,7 +22,7 @@ void main (void)
 	vec2 diff = a.xy - b.xy;
 	vec2 perpendicular = normalize(vec2(diff.y, -diff.x));
 	
-	a.xy += perpendicular * normal.w / screen ;
+	a.xy += perpendicular * normal.w / screen ; // normal.w = line screen space width
 
 	a.xy *= a.w;
 

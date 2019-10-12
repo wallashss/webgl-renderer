@@ -94,6 +94,14 @@ Camera.prototype.rotate = function(yawIntensity, pitchIntensity)
 	this.state.pitchIntensity = pitchIntensity;
 }
 
+Camera.prototype.restorePerspective = function(width, height)
+{
+	this.forceDraw = true;
+	let m = mat4.create();
+	mat4.perspective(m, this.fov, width / height, this.near, this.far);
+	this.manipulator.setProjectionMatrix(m);
+}
+
 Camera.prototype.setPickcallback = function(callback)
 {
 	this.pickCallback = callback;
@@ -134,7 +142,10 @@ Camera.prototype.zoom = function(intensity, x, y)
 
 Camera.prototype.setPadding = function(x, y)
 {
-	this.manipulator.setPadding(x, y);
+	if(this.manipulator.setPadding)
+	{
+		this.manipulator.setPadding(x, y);
+	}
 }
 
 Camera.prototype.setOrthoMode = function()
@@ -168,20 +179,24 @@ Camera.prototype.setFlyMode = function()
 		this.flyManipulator.applyRestrictions(this.state.worldUp);
 	}
 	this.manipulator = this.flyManipulator;
+	this.isPanPrimary = true;
 }
 
-Camera.prototype.setExamineMode = function()
+Camera.prototype.setExamineMode = function(isOrtho = false)
 {
 	this.manipulatorType = Camera.EXAMINE_MANIPULATOR_TYPE;
 	
 	if(this.manipulator)
 	{
+		let projectionMatrix = this.manipulator.getProjectionMatrix();
+		this.examineManipulator.setProjectionMatrix(projectionMatrix);
+
 		let viewMatrix = this.manipulator.getViewMatrix();
 		this.examineManipulator.setViewMatrix(viewMatrix);
 	}
 	this.manipulator = this.examineManipulator;
-
-	
+	this.state.isOrtho = isOrtho;
+	this.isPanPrimary = false;
 }
 
 Camera.prototype.setViewMatrix = function(viewMatrix, forceDraw = true)
