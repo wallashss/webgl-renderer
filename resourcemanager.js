@@ -203,20 +203,14 @@ ResourceManager.prototype.uploadLineString = function(vertices, width)
 
 	let elementCount = (lineCount) * 2 * 3; // 2 vertices * 3 triangle indices
 
-	// elementCount = 3;
 
 	let elementBuffer = new Uint16Array(elementCount);
 	let vertexBuffer = new Float32Array(verticesCount * vertexBufferVerticeSize + 2 * vertexBufferVerticeSize );
-
-	console.log(elementCount);
-
-	// width = -width;
 
 	let elementIdx = 0;
 	for(let i = 0; i < lineCount ; i++)
 	{
 		let idx = i * 4 - (i * 2);
-		// let idx = i * 4 ;
 		elementBuffer[elementIdx++] = idx ;
 		elementBuffer[elementIdx++] = idx + 1;
 		elementBuffer[elementIdx++] = idx + 2;
@@ -225,11 +219,6 @@ ResourceManager.prototype.uploadLineString = function(vertices, width)
 		elementBuffer[elementIdx++] = idx + 3;
 		elementBuffer[elementIdx++] = idx + 2;
 	}
-
-	
-	// elementCount = 3;
-
-	console.log(elementBuffer);
 
 	for(let i = 0; i < verticesCount; i++)
 	{
@@ -248,20 +237,12 @@ ResourceManager.prototype.uploadLineString = function(vertices, width)
 		vertexBuffer[bidx + 7] = +width;
 	}
 
-	// Duplicate second vertex to the first vertex
+	// Extend first vertex
 	{
 		let bidx = 0;	
 		let lidx = (0) * vertexSize;
 		let nlidx = (1) * vertexSize;
-		// vertexBuffer[bidx + 0] = vertices[lidx + 0];
-		// vertexBuffer[bidx + 1] = vertices[lidx + 1];
-		// vertexBuffer[bidx + 2] = vertices[lidx + 2];
-		// vertexBuffer[bidx + 3] = -width;
 
-		// vertexBuffer[bidx + 4] = vertices[lidx + 0];
-		// vertexBuffer[bidx + 5] = vertices[lidx + 1];
-		// vertexBuffer[bidx + 6] = vertices[lidx + 2];
-		// vertexBuffer[bidx + 7] = +width;
 		vertexBuffer[bidx + 0] = vertices[lidx + 0] + (vertices[lidx + 0] - vertices[nlidx + 0]);
 		vertexBuffer[bidx + 1] = vertices[lidx + 1] + (vertices[lidx + 1] - vertices[nlidx + 1]);
 		vertexBuffer[bidx + 2] = vertices[lidx + 2] + (vertices[lidx + 2] - vertices[nlidx + 2]);
@@ -273,7 +254,7 @@ ResourceManager.prototype.uploadLineString = function(vertices, width)
 		vertexBuffer[bidx + 7] = +width;
 	}
 
-	// Duplicate last but one vertex to the last vertex
+	// Extend last vertex
 	{
 		let bidx = (verticesCount + 1) * vertexBufferVerticeSize;	
 		let lidx = (verticesCount - 1) * vertexSize;
@@ -288,19 +269,7 @@ ResourceManager.prototype.uploadLineString = function(vertices, width)
 		vertexBuffer[bidx + 5] = vertices[lidx + 1]+ (vertices[lidx + 1] - vertices[plidx + 1]);
 		vertexBuffer[bidx + 6] = vertices[lidx + 2]+ (vertices[lidx + 2] - vertices[plidx + 2]);
 		vertexBuffer[bidx + 7] = +width;
-
-		// vertexBuffer[bidx + 0] = vertices[lidx + 0];
-		// vertexBuffer[bidx + 1] = vertices[lidx + 1];
-		// vertexBuffer[bidx + 2] = vertices[lidx + 2];
-		// vertexBuffer[bidx + 3] = -width;
-
-		// vertexBuffer[bidx + 4] = vertices[lidx + 0];
-		// vertexBuffer[bidx + 5] = vertices[lidx + 1];
-		// vertexBuffer[bidx + 6] = vertices[lidx + 2];
-		// vertexBuffer[bidx + 7] = +width;
 	}
-
-	console.log(vertexBuffer);
 	
 	let verticesBufferId = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, verticesBufferId);
@@ -310,7 +279,6 @@ ResourceManager.prototype.uploadLineString = function(vertices, width)
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementsBufferId);
 	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, elementBuffer, gl.STATIC_DRAW);
 
-	// return {verticesBufferId: verticesBufferId, elementsBufferId: elementsBufferId, count: elementCount};
 	return {verticesBufferId: verticesBufferId,
 			elementsBufferId: elementsBufferId,
 			vertexSize: 16,

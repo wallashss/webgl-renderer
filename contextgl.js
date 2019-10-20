@@ -24,7 +24,7 @@ ContextGL.prototype.load = function(canvas, options = {},  version = 1)
 {	
 	if(options)
 	{
-		console.log(options);
+		// console.log(options);
 	}
 
 	if(!canvas)
