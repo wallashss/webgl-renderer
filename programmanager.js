@@ -28,6 +28,8 @@ ProgramManager.prototype.addProgram = function(id, vertexSource, fragmentSource,
 
 	this.programsMap[id] = programData;
 
+	return programData;
+
 }
 
 ProgramManager.prototype.getProgram = function(id)
