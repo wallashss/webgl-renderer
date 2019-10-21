@@ -68,7 +68,7 @@ BatchManager.prototype.addInstances = function(geometry, matrices, colors, optio
 	return _addInstances.call(this, geometry, matrices, colors, options);
 }
 
-//  TODO: Clear memeory resources
+//  TODO: Clear memory resources
 BatchManager.prototype.removeObject = function(id)
 {
 	let idx  = this.batchesKeys.indexOf(id);
@@ -108,92 +108,6 @@ BatchManager.prototype.addBatch = function(b, idx = null)
 	return null;
 }
 
-BatchManager.prototype.addPointMesh = function(geometry, points, colors, transform, options)
-{
-	let gl = this.contextGL.gl;
-
-	let textureName = options.textureName || null;
-	let unlit = options.unlit || false;
-	let isBillboard = options.isBillboard || false;
-	let programId = options.programId;
-
-	const outIdx = this.generateId();
-
-	let pointsBufferId = gl.createBuffer();
-	
-	let pointsCount = points.length / 3;
-	
-	// Upload points
-	gl.bindBuffer(gl.ARRAY_BUFFER, pointsBufferId);
-	gl.bufferData(gl.ARRAY_BUFFER, points, gl.STATIC_DRAW);
-
-	// Upload colors
-	let colorBufferId = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, colorBufferId);
-
-	let useBlending = false;
-	for(let i = 0; i < pointsCount; i++)
-	{
-		if(colors[i*4+3] < 255)
-		{
-			useBlending = true;
-			break;
-		}
-	}
-	gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
-	
-	let b = {geometry : geometry,
-		modelBufferId: pointsBufferId,
-		instanceCount: pointsCount,
-		colorBufferId: colorBufferId,
-		textureName: textureName,
-		color: vec4.fromValues(1, 1, 1, 1),
-		visible: true,
-		firstIdx: outIdx,
-		transform: transform || mat4.create(),
-		useBlending: useBlending,
-		unlit : unlit || false,
-		isBillboard: isBillboard,
-		isPointMesh: true,
-		programId: programId,
-		isInstance: true}
-
-	this.batches[outIdx] = b;	
-	this.batchesKeys.push(outIdx);
-	return outIdx;
-}
-
-// BatchManager.prototype.addObject = function(vertices, elements, color, transform, textureName, unlit)
-// {
-// 	let mesh = this.uploadMesh(vertices, elements);
-
-// 	let t = mat4.create();
-// 	if(transform)
-// 	{
-// 		mat4.copy(t, transform);
-// 	}
-	
-// 	let c = vec4.fromValues(0.8, 0.8, 0.8, 1.0);
-// 	if(color)
-// 	{
-// 		c = vec4.clone(color);
-// 	}
-	
-// 	let idx = this.generateId();
-	
-// 	let b = {mesh: mesh,
-// 		transform: t,
-// 		color: c,
-// 		visible: true,
-// 		textureName: textureName, 
-// 		programId: BatchManager.DEFAULT_PROGRAM_ID,
-// 		isInstance: false,
-// 		unlit: unlit || false};
-
-// 	this.batchesKeys.push(idx);
-// 	this.batches[idx] = b;
-// 	return idx;
-// }
 
 BatchManager.prototype.getSharedMatrices = function(idx)
 {
@@ -373,8 +287,6 @@ function vec4fToVec4b(v)
 
 function _addInstances(geometry, matrices, colors, options)
 {
-	let gl = this.contextGL.gl;
-	// const outIdx = this.generateId();
 	let out = [];
 
 
@@ -451,62 +363,31 @@ function _addInstances(geometry, matrices, colors, options)
 	}
 	else
 	{
-		let modelBufferId = null; 
 		
-		// Upload matrices
-		let instanceCount = 0;
+		
+		let instanceCount = options.count || 0;
+		
+		// Bind buffer ids
+		let modelBufferId = null; 
+		let colorBufferId = null;
 		if(matrices.constructor === WebGLBuffer)
 		{
 			modelBufferId = matrices;
-			if(colors.constructor === Uint8Array)
-			{
-				instanceCount = colors.length / 4;
-			}
-			else
-			{
-				instanceCount = colors.length;
-			}
 		}
-		else if(matrices.constructor === Float32Array)
+
+		if(colors.constructor === WebGLBuffer)
 		{
-			modelBufferId = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, modelBufferId);
-
-			instanceCount = matrices.length / 16;
-			gl.bufferData(gl.ARRAY_BUFFER, matrices, gl.STATIC_DRAW);
+			colorBufferId = colors;
 		}
-		else
-		{
-			modelBufferId = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, modelBufferId);
-
-			instanceCount = matrices.length;
-			
-			let matricesArray = new Float32Array(matrices.length * 16);
-			for(let i = 0; i < matrices.length; i++)
-			{
-				let m = matrices[i];
-				for(let j = 0; j < 16; j++)
-				{
-					matricesArray[i*16 + j] = m[j];
-				}
-			}
-			gl.bufferData(gl.ARRAY_BUFFER, matricesArray, gl.STATIC_DRAW);
-		}
-
+		
+		// Generate id for each instance
 		let offsetMap = {};
 		for(let i = 0 ; i < instanceCount; i++)
 		{
-			// let idx = outIdx + i; 
 			let idx = this.generateId();
 			offsetMap[idx] = i;
 			out.push(idx);
 		}
-
-
-		// Upload colors
-		let colorBufferId = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, colorBufferId);
 
 		if(textureName)
 		{
@@ -518,43 +399,12 @@ function _addInstances(geometry, matrices, colors, options)
 			useDepthMask = true;
 		}
 
-		if(colors.constructor === Uint8Array)
-		{
-			let colorsCount = colors.length / 4;
-			for(let i = 0; i < colorsCount; i++)
-			{
-				if(colors[i*4+3] < 255)
-				{
-					useBlending = true;
-					useDepthMask = true;
-					break;
-				}
-			}
-			gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
-		}
-		else
-		{
-			let colorArray = new Uint8Array(colors.length * 4);
-			for(let i = 0; i < colors.length ; i++)
-			{
-				let c = vec4fToVec4b(colors[i]);
-				for(let j = 0; j < 4; j++)
-				{
-					colorArray[i*4 + j] = c[j];
-					if(j == 3 && c[j] < 1.0)
-					{
-						useBlending = true;
-					}
-				}
-				
-			}
-			gl.bufferData(gl.ARRAY_BUFFER, colorArray, gl.STATIC_DRAW);
-		}
-
-		b.useBlending = useBlending;
-		b.useDepthMask = useDepthMask;
+		
+		b.instanceCount = instanceCount ;
+		b.useBlending = options.hasOwnProperty("useBlending") ? options.useBlending : useBlending;
+		b.useDepthMask = options.hasOwnProperty("useDepthMask") ? options.useDepthMask : useDepthMask;
+		b.transform = options.transform || null; 
 		b.modelBufferId = modelBufferId;
-		b.instanceCount = instanceCount;
 		b.colorBufferId = colorBufferId;
 		b.offsetMap = offsetMap;
 

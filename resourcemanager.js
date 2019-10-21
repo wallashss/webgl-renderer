@@ -287,6 +287,82 @@ ResourceManager.prototype.uploadLineString = function(vertices, width)
 			count: elementCount};
 }
 
+ResourceManager.prototype.uploadPointCloud = function(points)
+{
+	let gl = this.gl;
+
+	let pointsBufferId = gl.createBuffer();
+	
+	let pointsCount = points.length / 3;
+	
+	// Upload points
+	gl.bindBuffer(gl.ARRAY_BUFFER, pointsBufferId);
+	gl.bufferData(gl.ARRAY_BUFFER, points, gl.STATIC_DRAW);
+
+	return pointsBufferId;
+}
+
+ResourceManager.prototype.uploadColors = function(colors)
+{
+	let gl = this.gl;
+
+	let colorBufferId = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, colorBufferId);
+
+	if(colors.constructor === Uint8Array)
+	{
+		gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+	}
+	else
+	{
+		let colorBuffer = new Uint8Array(colors.length * 4);
+		for(let i = 0; i < colors.length ; i++)
+		{
+			let c = vec4fToVec4b(colors[i]);
+			for(let j = 0; j < 4; j++)
+			{
+				colorBuffer[i*4 + j] = c[j];
+			}
+		}
+		gl.bufferData(gl.ARRAY_BUFFER, colorBuffer, gl.STATIC_DRAW);
+	}
+
+	return colorBufferId;
+
+}
+
+ResourceManager.prototype.uploadMatrices = function(matrices)
+{
+	let gl = this.gl;
+	let modelBufferId = null; 
+
+	if(matrices.constructor === Float32Array)
+	{
+		modelBufferId = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, modelBufferId);
+
+		gl.bufferData(gl.ARRAY_BUFFER, matrices, gl.STATIC_DRAW);
+	}
+	else
+	{
+		modelBufferId = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, modelBufferId);
+		
+		let matricesArray = new Float32Array(matrices.length * 16);
+		for(let i = 0; i < matrices.length; i++)
+		{
+			let m = matrices[i];
+			for(let j = 0; j < 16; j++)
+			{
+				matricesArray[i*16 + j] = m[j];
+			}
+		}
+		gl.bufferData(gl.ARRAY_BUFFER, matricesArray, gl.STATIC_DRAW);
+	}
+
+	return modelBufferId;
+	
+}
 
 ResourceManager.prototype.uploadMesh = function(vertices, elements)
 {
@@ -336,5 +412,15 @@ ResourceManager.prototype.uploadMesh = function(vertices, elements)
 			count: count };
 }
 
+function vec4fToVec4b(v)
+{
+	let out = new Uint8Array(4);
+	out[0] = Math.min(Math.max(v[0], 0), 1) * 255;
+	out[1] = Math.min(Math.max(v[1], 0), 1) * 255;
+	out[2] = Math.min(Math.max(v[2], 0), 1) * 255;
+	out[3] = Math.min(Math.max(v[3], 0), 1) * 255;
+	
+	return out;
+}
 
 module.exports = ResourceManager;

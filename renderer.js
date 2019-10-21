@@ -182,7 +182,7 @@ Renderer.prototype.draw = function(batchManager)
 		}
 		
 		// Setup model matrix
-		if(!currentProgram.isInstance || b.isPointMesh)
+		if(b.transform)
 		{
 			mat4.copy(m, b.transform);
 		}
@@ -231,23 +231,25 @@ Renderer.prototype.draw = function(batchManager)
 
 		if(currentProgram.isInstance)
 		{
-			if(currentModelBufferId !== b.modelBufferId && b.isPointMesh)
+			if(currentModelBufferId !== b.modelBufferId)
 			{
-				gl.bindBuffer(gl.ARRAY_BUFFER, b.modelBufferId);
-				gl.vertexAttribPointer(currentProgram.translation, 3, gl.FLOAT, false, 3 * 4, 0);
-				_setAttribDivisors.call(this, currentProgram.translation, 1);
-				currentModelBufferId = b.modelBufferId;
-			}
-			else if(currentModelBufferId !== b.modelBufferId)
-			{
-				gl.bindBuffer(gl.ARRAY_BUFFER, b.modelBufferId);
-				let rowSize = 4 * 4 ; //  4 columns * 4 bytes
-				let matrixSize = 4 * rowSize; // 4  * rows
-				for(let i = 0; i < 4; i++)
+				if(currentProgram.translation >= 0)
 				{
-					gl.vertexAttribPointer(currentProgram.model + i, 4, gl.FLOAT, false, matrixSize, i * rowSize);
+					gl.bindBuffer(gl.ARRAY_BUFFER, b.modelBufferId);
+					gl.vertexAttribPointer(currentProgram.translation, 3, gl.FLOAT, false, 3 * 4, 0);
+					_setAttribDivisors.call(this, currentProgram.translation, 1);
 				}
-				_setAttribDivisors.call(this, currentProgram.modelAttribs, 1);
+				if(currentProgram.model >= 0)
+				{
+					gl.bindBuffer(gl.ARRAY_BUFFER, b.modelBufferId);
+					let rowSize = 4 * 4 ; //  4 columns * 4 bytes
+					let matrixSize = 4 * rowSize; // 4  * rows
+					for(let i = 0; i < 4; i++)
+					{
+						gl.vertexAttribPointer(currentProgram.model + i, 4, gl.FLOAT, false, matrixSize, i * rowSize);
+					}
+					_setAttribDivisors.call(this, currentProgram.modelAttribs, 1);
+				}
 				currentModelBufferId = b.modelBufferId;
 			}
 
