@@ -92,6 +92,8 @@ ResourceManager.prototype.uploadLineSet = function(vertices, width)
 {
 	let gl = this.gl;
 
+	let halfWidth = width * 0.5;
+
 	let vertexSize = 3;
 	let verticesCount = vertices.length / vertexSize;
 
@@ -128,7 +130,7 @@ ResourceManager.prototype.uploadLineSet = function(vertices, width)
 		vertexBuffer[bidx + 0] = vertices[lidx + 0];
 		vertexBuffer[bidx + 1] = vertices[lidx + 1];
 		vertexBuffer[bidx + 2] = vertices[lidx + 2];
-		vertexBuffer[bidx + 3] = -width;
+		vertexBuffer[bidx + 3] = -halfWidth;
 
 		if(i % 2 === 0)
 		{
@@ -136,7 +138,7 @@ ResourceManager.prototype.uploadLineSet = function(vertices, width)
 			vertexBuffer[bidx + 4] = vertices[nlidx + 0];
 			vertexBuffer[bidx + 5] = vertices[nlidx + 1];
 			vertexBuffer[bidx + 6] = vertices[nlidx + 2];
-			vertexBuffer[bidx + 7] = -width;
+			vertexBuffer[bidx + 7] = -halfWidth;
 		}
 		else
 		{
@@ -144,14 +146,14 @@ ResourceManager.prototype.uploadLineSet = function(vertices, width)
 			vertexBuffer[bidx + 4] = vertices[nlidx + 0];
 			vertexBuffer[bidx + 5] = vertices[nlidx + 1];
 			vertexBuffer[bidx + 6] = vertices[nlidx + 2];
-			vertexBuffer[bidx + 7] = +width;
+			vertexBuffer[bidx + 7] = +halfWidth;
 
 		}
 
 		vertexBuffer[bidx + 8] = vertices[lidx + 0];
 		vertexBuffer[bidx + 9] = vertices[lidx + 1];
 		vertexBuffer[bidx + 10] = vertices[lidx + 2];
-		vertexBuffer[bidx + 11] = +width;
+		vertexBuffer[bidx + 11] = +halfWidth;
 
 		
 		if(i % 2 === 0)
@@ -160,7 +162,7 @@ ResourceManager.prototype.uploadLineSet = function(vertices, width)
 			vertexBuffer[bidx + 12] = vertices[nlidx + 0];
 			vertexBuffer[bidx + 13] = vertices[nlidx + 1];
 			vertexBuffer[bidx + 14] = vertices[nlidx + 2];
-			vertexBuffer[bidx + 15] = +width;
+			vertexBuffer[bidx + 15] = +halfWidth;
 		}
 		else
 		{
@@ -168,7 +170,7 @@ ResourceManager.prototype.uploadLineSet = function(vertices, width)
 			vertexBuffer[bidx + 12] = vertices[nlidx + 0];
 			vertexBuffer[bidx + 13] = vertices[nlidx + 1];
 			vertexBuffer[bidx + 14] = vertices[nlidx + 2];
-			vertexBuffer[bidx + 15] = -width;
+			vertexBuffer[bidx + 15] = -halfWidth;
 		}
 
 	}
@@ -193,6 +195,8 @@ ResourceManager.prototype.uploadLineSet = function(vertices, width)
 ResourceManager.prototype.uploadLineString = function(vertices, width)
 {
 	let gl = this.gl;
+
+	let halfWidth = width * 0.5;
 
 	let vertexSize = 3;
 	let verticesCount = vertices.length / vertexSize;
@@ -229,12 +233,12 @@ ResourceManager.prototype.uploadLineString = function(vertices, width)
 		vertexBuffer[bidx + 0] = vertices[lidx + 0];
 		vertexBuffer[bidx + 1] = vertices[lidx + 1];
 		vertexBuffer[bidx + 2] = vertices[lidx + 2];
-		vertexBuffer[bidx + 3] = -width;
+		vertexBuffer[bidx + 3] = -halfWidth;
 
 		vertexBuffer[bidx + 4] = vertices[lidx + 0];
 		vertexBuffer[bidx + 5] = vertices[lidx + 1];
 		vertexBuffer[bidx + 6] = vertices[lidx + 2];
-		vertexBuffer[bidx + 7] = +width;
+		vertexBuffer[bidx + 7] = +halfWidth;
 	}
 
 	// Extend first vertex
@@ -246,12 +250,12 @@ ResourceManager.prototype.uploadLineString = function(vertices, width)
 		vertexBuffer[bidx + 0] = vertices[lidx + 0] + (vertices[lidx + 0] - vertices[nlidx + 0]);
 		vertexBuffer[bidx + 1] = vertices[lidx + 1] + (vertices[lidx + 1] - vertices[nlidx + 1]);
 		vertexBuffer[bidx + 2] = vertices[lidx + 2] + (vertices[lidx + 2] - vertices[nlidx + 2]);
-		vertexBuffer[bidx + 3] = -width;
+		vertexBuffer[bidx + 3] = -halfWidth;
 
 		vertexBuffer[bidx + 4] = vertices[lidx + 0] + (vertices[lidx + 0] - vertices[nlidx + 0]);
 		vertexBuffer[bidx + 5] = vertices[lidx + 1] + (vertices[lidx + 1] - vertices[nlidx + 1]);
 		vertexBuffer[bidx + 6] = vertices[lidx + 2] + (vertices[lidx + 2] - vertices[nlidx + 2]);
-		vertexBuffer[bidx + 7] = +width;
+		vertexBuffer[bidx + 7] = +halfWidth;
 	}
 
 	// Extend last vertex
@@ -263,12 +267,12 @@ ResourceManager.prototype.uploadLineString = function(vertices, width)
 		vertexBuffer[bidx + 0] = vertices[lidx + 0] + (vertices[lidx + 0] - vertices[plidx + 0]);
 		vertexBuffer[bidx + 1] = vertices[lidx + 1] + (vertices[lidx + 1] - vertices[plidx + 1]);
 		vertexBuffer[bidx + 2] = vertices[lidx + 2] + (vertices[lidx + 2] - vertices[plidx + 2]);
-		vertexBuffer[bidx + 3] = -width;
+		vertexBuffer[bidx + 3] = -halfWidth;
 
 		vertexBuffer[bidx + 4] = vertices[lidx + 0]+ (vertices[lidx + 0] - vertices[plidx + 0]);
 		vertexBuffer[bidx + 5] = vertices[lidx + 1]+ (vertices[lidx + 1] - vertices[plidx + 1]);
 		vertexBuffer[bidx + 6] = vertices[lidx + 2]+ (vertices[lidx + 2] - vertices[plidx + 2]);
-		vertexBuffer[bidx + 7] = +width;
+		vertexBuffer[bidx + 7] = +halfWidth;
 	}
 	
 	let verticesBufferId = gl.createBuffer();

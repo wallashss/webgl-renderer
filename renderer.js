@@ -19,6 +19,8 @@ function Renderer()
 	this.programManager = null;
 
 	this.screenSize = new Float32Array(2);
+
+	this.pointSize = 1.0;
 	
 
 	// let hasDrawBuffer = false;
@@ -160,7 +162,7 @@ Renderer.prototype.draw = function(batchManager)
 			gl.uniform1f(currentProgram.billboardSizeUniform, billboardSizeSet ? 1.0 : 0.0);
 			gl.uniform1f(currentProgram.billboardRotUniform, billboardRotSet ? 1.0 : 0.0);
 			
-			gl.uniform2f(currentProgram.screenUniform, this.screenSize[0], this.screenSize[1]);
+			gl.uniform2f(currentProgram.screenUniform, this.screenSize[0] / this.pointSize, this.screenSize[1] / this.pointSize);
 		}
 		
 		if(b.unlit !== unlintSet)
@@ -542,20 +544,25 @@ Renderer.prototype.load = function()
 	gl.bindTexture(gl.TEXTURE_2D, null);		
 
 	// Init perspective matrix
-	mat4.perspective(this.projectionMatrix, 45, this.canvas.width / this.canvas.height, 0.1, 100000.0);
+	// mat4.perspective(this.projectionMatrix, 45, this.canvas.width / this.canvas.height, 0.1, 100000.0);
 
 	return true;
 }
 
-Renderer.prototype.setViewport = function(x, y, width, height, willDraw = false)
+Renderer.prototype.setViewport = function(x, y, width, height)
 {
 	let gl = this.contextGL.gl;
-	this.screenSize[0] = width;
+	this.screenSize[0] = width ;
 	this.screenSize[1] = height;
 	if(gl)
 	{
 		gl.viewport(x, y, width, height);
 	}
+}
+
+Renderer.prototype.setPointSize = function(size)
+{
+	this.pointSize = size;
 }
 
 Renderer.prototype.setViewMatrix = function(viewMatrix)
