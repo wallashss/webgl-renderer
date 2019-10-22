@@ -28,7 +28,7 @@ void main (void)
     {
         gl_Position =  projection * (modelView * model * vec4(0, 0, 0, 1.0) + model * vec4(position, 0));
         vNormal = normalize(mat3(modelView) * normal);
-        return;
+		currentColor = vec4(1, 0, 1, 1);
     }
 	else if(billboardSize > 0.0)
     {
@@ -41,15 +41,11 @@ void main (void)
 		gl_Position.xy *= gl_Position.w;
 
         vNormal = normalize(mat3(modelView) * normal);
-        vTexcoord = texcoord;
-        return;
     }
 	else if(billboardRotation > 0.0)
     {
         gl_Position =  projection * (modelView * model * vec4(0, 0, 0, 1.0) + model * vec4(position, 0));
         vNormal = normalize(mat3(modelView) * normal);
-        vTexcoord = texcoord;
-        return;
     }
 	else
 	{

@@ -82,7 +82,7 @@ void main (void)
     {
         gl_Position =  projection * (modelView * model * vec4(0, 0, 0, 1.0) + model * vec4(position, 0));
         vNormal = normalize(mat3(modelView) * normal);
-        return;
+		currentColor = vec4(1, 0, 1, 1);
     }
 	else if(billboardSize > 0.0)
     {
@@ -95,15 +95,11 @@ void main (void)
 		gl_Position.xy *= gl_Position.w;
 
         vNormal = normalize(mat3(modelView) * normal);
-        vTexcoord = texcoord;
-        return;
     }
 	else if(billboardRotation > 0.0)
     {
         gl_Position =  projection * (modelView * model * vec4(0, 0, 0, 1.0) + model * vec4(position, 0));
         vNormal = normalize(mat3(modelView) * normal);
-        vTexcoord = texcoord;
-        return;
     }
 	else
 	{
@@ -217,11 +213,14 @@ attribute vec2 texcoord;
 attribute vec3 translation;
 attribute vec4 colorInstance;
 
+uniform highp vec2 screen;
 uniform highp mat4 projection;
 uniform highp mat4 modelViewProjection;
 uniform highp mat4 modelView;
 uniform highp mat4 normalMatrix;
 uniform float isBillboard;
+uniform float billboardSize;
+uniform float billboardRotation;
 uniform vec4 color;
 
 // varying highp vec4 vPicking;
@@ -233,26 +232,49 @@ varying vec2 vTexcoord;
 
 void main (void)
 {
-    if(isBillboard > 0.0)
-    {
-        gl_Position =  projection * (modelView * vec4(translation, 1.0) +  vec4(position, 0));
-        currentColor = colorInstance;
-        vNormal = normalize(mat3(modelView) * normal);
-        return;
-    }
-    gl_Position =  modelViewProjection *  vec4(translation + position , 1.0);
-    
-    currentColor = colorInstance;
-    // currentColor = vec4(gl_VertexID, gl_VertexID, gl_VertexID, 1.0);
-
+	currentColor = colorInstance;
     vTexcoord = texcoord;
 
-    vec4 vPosition4 = modelView  *  vec4(position, 1.0);
-    vPosition = vPosition4.xyz / vPosition4.w;
+    // if(isBillboard > 0.0)
+    // {
+    //     gl_Position =  projection * (modelView * vec4(translation, 1.0) +  vec4(position, 0));
+    //     vNormal = normalize(mat3(modelView) * normal);
+    //     return;
+    // }
+
+	if(isBillboard > 0.0)
+    {
+        gl_Position =  projection * (modelView * vec4(translation, 1.0) +  vec4(position, 0));
+        vNormal = normalize(mat3(modelView) * normal);
+    }
+	else if(billboardSize > 0.0)
+    {
+		// mat3 m = mat3(model);
+		// vec4 pos = model[3];
+
+		gl_Position = modelViewProjection * vec4(translation, 1.0);
+		gl_Position.xy /= gl_Position.w;
+		gl_Position.xy += (position.xyz).xy / screen;
+		gl_Position.xy *= gl_Position.w;
+
+        vNormal = normalize(mat3(modelView) * normal);
+    }
+	else if(billboardRotation > 0.0)
+    {
+        gl_Position =  projection * (modelView * vec4(translation, 1.0)  * vec4(position, 0));
+        vNormal = normalize(mat3(modelView) * normal);
+    }
+	else
+	{
+		gl_Position =  modelViewProjection *  vec4(translation + position , 1.0);
+
+		vec4 vPosition4 = modelView  *  vec4(position, 1.0);
+		vPosition = vPosition4.xyz / vPosition4.w;
+		
+		vNormal = mat3(modelView) * normal;
+		vNormal = normalize(vNormal);
+	}
     
-    // vPicking = pickingInstance;
-    vNormal = mat3(modelView) * normal;
-    vNormal = normalize(vNormal);
 }`;
 exports.wireframefragment=`
 precision mediump float;

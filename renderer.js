@@ -51,6 +51,12 @@ function Renderer()
 	this.forceUseBlend = null; // null - set to batch decide, true - always use blend, false - never use blending
 }
 
+Renderer.prototype.clear = function()
+{
+	let gl = this.contextGL.gl;
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+}
+
 Renderer.prototype.draw = function(batchManager)
 {
 	let gl = this.contextGL.gl;
