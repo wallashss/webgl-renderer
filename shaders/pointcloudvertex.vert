@@ -40,13 +40,14 @@ void main (void)
     }
 	else if(billboardSize > 0.0)
     {
-		// mat3 m = mat3(model);
-		// vec4 pos = model[3];
-
 		gl_Position = modelViewProjection * vec4(translation, 1.0);
 		gl_Position.xy /= gl_Position.w;
-		gl_Position.xy += (position.xyz).xy / screen;
+		gl_Position.xy += position.xy / screen;
 		gl_Position.xy *= gl_Position.w;
+
+		// gl_Position.z = 0.0;
+
+		// currentColor = vec4(gl_Position.z, gl_Position.z, gl_Position.z, 1);
 
         vNormal = normalize(mat3(modelView) * normal);
     }

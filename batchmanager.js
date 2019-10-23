@@ -291,6 +291,7 @@ function _addInstances(geometry, matrices, colors, options)
 
 
 	let isBillboard 	= options.isBillboard || options.billboard || false;
+	let useDepthMask 	= !!options.useDepthMask;
 	let billboardSize 	= options.billboardSize || false;
 	let billboardRot 	= options.billboardRotation || false;
 	let textureName 	= options.textureName || null;
@@ -302,8 +303,6 @@ function _addInstances(geometry, matrices, colors, options)
 	let programId 		= options.programId || null; 
 
 	let useBlending = false;
-	let useDepthMask = false;
-
 
 	let b = {
 			cullFace: cullFace,
@@ -364,7 +363,6 @@ function _addInstances(geometry, matrices, colors, options)
 	else
 	{
 		
-		
 		let instanceCount = options.count || 0;
 		
 		// Bind buffer ids
@@ -393,12 +391,6 @@ function _addInstances(geometry, matrices, colors, options)
 		{
 			useBlending = true;
 		}
-
-		if(isBillboard || billboardSize || billboardRot)
-		{
-			useDepthMask = true;
-		}
-
 		
 		b.instanceCount = instanceCount ;
 		b.useBlending = options.hasOwnProperty("useBlending") ? options.useBlending : useBlending;
