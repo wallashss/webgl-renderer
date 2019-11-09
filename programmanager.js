@@ -102,6 +102,7 @@ function _loadProgramBinds (program, programData)
 	programData.projectionUniform = gl.getUniformLocation(program, "projection");
 	programData.modelViewProjectionUniform = gl.getUniformLocation(program, "modelViewProjection");
 	programData.modelViewUniform = gl.getUniformLocation(program, "modelView");
+	programData.viewUniform = gl.getUniformLocation(program, "view");
 	programData.normalMatrixUniform = gl.getUniformLocation(program, "normalMatrix");
 	programData.lightPositionUniform = gl.getUniformLocation(program, "lightPosition");
 	programData.colorUniform = gl.getUniformLocation(program, "color");

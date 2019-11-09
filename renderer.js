@@ -215,6 +215,7 @@ Renderer.prototype.draw = function(batchManager)
 		gl.uniformMatrix4fv(currentProgram.projectionUniform, false, p);
 		gl.uniformMatrix4fv(currentProgram.modelViewUniform, false, mv);
 		gl.uniformMatrix4fv(currentProgram.modelViewProjectionUniform, false, mvp);
+		gl.uniformMatrix4fv(currentProgram.viewUniform, false, v);
 		gl.uniformMatrix4fv(currentProgram.normalMatrixUniform, false, normalMatrix);
 		
 		if(currentVertexBufferId !== b.geometry.verticesBufferId)

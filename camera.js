@@ -179,7 +179,7 @@ Camera.prototype.setFlyMode = function()
 		this.flyManipulator.applyRestrictions(this.state.worldUp);
 	}
 	this.manipulator = this.flyManipulator;
-	this.isPanPrimary = true;
+	// this.isPanPrimary = true;
 }
 
 Camera.prototype.setExamineMode = function(isOrtho = false)
