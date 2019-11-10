@@ -296,14 +296,21 @@ ResourceManager.prototype.uploadPointCloud = function(points)
 	let gl = this.gl;
 
 	let pointsBufferId = gl.createBuffer();
-	
-	let pointsCount = points.length / 3;
-	
+		
 	// Upload points
 	gl.bindBuffer(gl.ARRAY_BUFFER, pointsBufferId);
 	gl.bufferData(gl.ARRAY_BUFFER, points, gl.STATIC_DRAW);
 
 	return pointsBufferId;
+}
+
+ResourceManager.prototype.removeBuffer = function(buffer)
+{
+	if(buffer)
+	{
+		let gl = this.gl;
+		gl.deleteBuffer(buffer);
+	}
 }
 
 ResourceManager.prototype.uploadColors = function(colors)
@@ -415,6 +422,54 @@ ResourceManager.prototype.uploadMesh = function(vertices, elements)
 			offsets: {position: 0, normal: 12, texcoord: 3 * 4 + 3 * 4},
 			count: count };
 }
+
+ResourceManager.prototype.loadWireframeBuffer = function(sizeBytes = Math.pow(2, 16))
+{
+	let gl = this.gl;
+	let trianglesCount = Math.floor(sizeBytes / (3 * 3 * 4)); // 3 components x 3 vertices x 4 bytes per float
+
+	let buffer = new Float32Array(trianglesCount * 3 * 3);
+
+	for(let i = 0; i < trianglesCount; i++)
+	{
+		// First triangle
+		buffer[i * 9 + 0] = 1.0;
+		buffer[i * 9 + 1] = 0.0;
+		buffer[i * 9 + 2] = 0.0;
+
+		// Second triangle
+		buffer[i * 9 + 3] = 0.0;
+		buffer[i * 9 + 4] = 1.0;
+		buffer[i * 9 + 5] = 0.0;
+
+		// Third triangle
+		buffer[i * 9 + 6] = 0.0;
+		buffer[i * 9 + 7] = 0.0;
+		buffer[i * 9 + 8] = 1.0;
+	}
+
+	this.wireFrameBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.wireFrameBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, buffer, gl.STATIC_DRAW);
+}
+
+ResourceManager.prototype.updateColor = function(colorBufferId, offset, colors)
+{
+	let gl = this.gl;
+	gl.bindBuffer(gl.ARRAY_BUFFER, colorBufferId);
+	gl.bufferSubData(gl.ARRAY_BUFFER, offset, colors);
+	gl.bindBuffer(gl.ARRAY_BUFFER, null);
+}
+
+ResourceManager.prototype.updateTransform = function(modelBufferId, offset, transform)
+{
+	let gl = this.gl;
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, modelBufferId);
+	gl.bufferSubData(gl.ARRAY_BUFFER, offset, transform);
+	gl.bindBuffer(gl.ARRAY_BUFFER, null);
+}
+
 
 function vec4fToVec4b(v)
 {

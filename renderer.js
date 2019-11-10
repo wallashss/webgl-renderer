@@ -59,7 +59,7 @@ Renderer.prototype.clear = function()
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 }
 
-Renderer.prototype.draw = function(batchManager)
+Renderer.prototype.draw = function(batchesKeys, batches)
 {
 	let gl = this.contextGL.gl;
 	let ext = this.contextGL.ext;
@@ -83,7 +83,7 @@ Renderer.prototype.draw = function(batchManager)
 		gl.clear(gl.COLOR_BUFFER_BIT );
 	}
 	
-	if(!batchManager.hasBatches())
+	if(!batchesKeys.length === 0)
 	{
 		return;
 	}
@@ -115,9 +115,10 @@ Renderer.prototype.draw = function(batchManager)
 
 	gl.activeTexture(gl.TEXTURE0);
 
-	for(let i = 0; i < batchManager.batchesKeys.length; i++)
+
+	for(let i = 0; i < batchesKeys.length; i++)
 	{
-		let b = batchManager.batches[batchManager.batchesKeys[i]];
+		let b = batches[batchesKeys[i]];
 		if(!b.visible)
 		{
 			continue;
@@ -480,36 +481,6 @@ Renderer.prototype.setProgramManager = function(manager)
 Renderer.prototype.setDummyTexture = function(texture)
 {
 	this.dummyTexture = texture;
-}
-
-Renderer.prototype.loadWireframeBuffer = function(sizeBytes = Math.pow(2, 16))
-{
-	let gl = this.contextGL.gl;
-	let trianglesCount = Math.floor(sizeBytes / (3 * 3 * 4)); // 3 components x 3 vertices x 4 bytes per float
-
-	let buffer = new Float32Array(trianglesCount * 3 * 3);
-
-	for(let i = 0; i < trianglesCount; i++)
-	{
-		// First triangle
-		buffer[i * 9 + 0] = 1.0;
-		buffer[i * 9 + 1] = 0.0;
-		buffer[i * 9 + 2] = 0.0;
-
-		// Second triangle
-		buffer[i * 9 + 3] = 0.0;
-		buffer[i * 9 + 4] = 1.0;
-		buffer[i * 9 + 5] = 0.0;
-
-		// Third triangle
-		buffer[i * 9 + 6] = 0.0;
-		buffer[i * 9 + 7] = 0.0;
-		buffer[i * 9 + 8] = 1.0;
-	}
-
-	this.wireFrameBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, this.wireFrameBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, buffer, gl.STATIC_DRAW);
 }
 
 Renderer.prototype.load = function()

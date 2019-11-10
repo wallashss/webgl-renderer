@@ -1,37 +1,31 @@
 "use strict";
 
-const glMatrix = require("gl-matrix");
-const vec3 = glMatrix.vec3;
-const vec4 = glMatrix.vec4;
-const mat4 = glMatrix.mat4;
 
-
-let DEFAULT_NEXT_ID = 1;
-
-function BatchManager(contextGL)
+function BatchManager()
 {
 	this.batchesKeys = [];
 	this.batches = {};
+	this.layers = {};
 
-	this.contextGL = contextGL;
+	this._nextId = 1;
 
 	this.generateId = () =>
 	{
-		let id = DEFAULT_NEXT_ID;
-		DEFAULT_NEXT_ID++;
+		let id = this._nextId;
+		this._nextId++;
 		return id;
 	}
 }
 
 
+BatchManager.prototype.addLayer = function(layer)
+{
+	this.layers[layer] = [];
+}
+
 BatchManager.prototype.setGenerateId = function(callback)
 {
 	this.generateId = callback || (() => {});
-}
-
-BatchManager.prototype.getBatches = function()
-{
-	return this;
 }
 
 BatchManager.prototype.addInstances = function(geometry, matrices, colors, options = {})
@@ -48,36 +42,29 @@ BatchManager.prototype.addInstances = function(geometry, matrices, colors, optio
 		throw err;
 	}
 
-	if(matrices.constructor === WebGLBuffer)
-	{
-		// go on
-		return _addInstances.call(this, geometry, matrices, colors, options);
-	}
-	if((matrices.constructor != Float32Array || colors.constructor != Uint8Array) && 
-		colors.length !== matrices.length)
-	{
-		console.error("Colors and instances must have same length");
-		return;
-	}
-	if((matrices.constructor === Float32Array || colors.constructor === Uint8Array) && 
-		(matrices.length / 16 !== colors.length / 4 ))
-	{
-		console.error("Colors and instances must have same length");
-		return;
-	}
 	return _addInstances.call(this, geometry, matrices, colors, options);
 }
 
 //  TODO: Clear memory resources
 BatchManager.prototype.removeObject = function(id)
 {
-	let idx  = this.batchesKeys.indexOf(id);
-	if(idx >= 0)
-	{
-		this.batchesKeys.splice(idx, 1);
-	}
+	// let idx  = this.batchesKeys.indexOf(id);
+	// if(idx >= 0)
+	// {
+	// 	this.batchesKeys.splice(idx, 1);
+	// }
 	if(this.batches.hasOwnProperty(id))
 	{
+		for(let i in this.layers)
+		{
+			let layer = this.layers[i];
+			let idx = layer.indexOf(id);
+
+			if(idx >= 0)
+			{
+				layer.splice(idx, 1);
+			}
+		}
 		delete this.batches[id];
 	}
 }
@@ -87,6 +74,17 @@ BatchManager.prototype.getBatch = function(id)
 	if(this.batches.hasOwnProperty(id))
 	{
 		return this.batches[id];
+	}
+	return null;
+}
+
+BatchManager.prototype.getOffset = function(id)
+{
+	if(this.batches.hasOwnProperty(id))
+	{
+		let b = this.batches[id];
+
+		return b.offsetMap[id];
 	}
 	return null;
 }
@@ -108,165 +106,36 @@ BatchManager.prototype.addBatch = function(b, idx = null)
 	return null;
 }
 
-
-BatchManager.prototype.getSharedMatrices = function(idx)
-{
-	if(this.batches.hasOwnProperty(idx))
-	{
-		let b = this.batches[idx];
-
-		return b.modelBufferId;
-	}
-
-	return null;
-}
-
-BatchManager.prototype.addObjectInstances = function(vertices, elements, colors, matrices, textureName, unlit, isBillboard)
-{
-	if(!matrices)
-	{
-		let err = "Matrices can not be null";
-		throw err;
-	}
-
-	if(!colors)
-	{
-		let err = "Colors can not be null";
-		throw err;
-	}
-
-	if((matrices.constructor != Float32Array || colors.constructor != Float32Array) &&
-		colors.length !== matrices.length)
-	{
-		console.log("Colors and instances must have same length");
-		return;
-	}
-	if((matrices.constructor === Float32Array || colors.constructor === Float32Array) && 
-	(matrices.length / 16 !== colors.length /4 ))
-	{
-		console.log("Colors and instances must have same length");
-		return;
-	}
-
-	let mesh = this.uploadMesh(vertices, elements);
-	_addInstances.call(this,mesh, colors, matrices, textureName, unlit, isBillboard);
-}
-
-BatchManager.prototype.updateColorBuffer = function(idx, colors)
-{
-	let gl = this.contextGL.gl;
-	if(this.batches.hasOwnProperty(idx))
-	{
-		let b = this.batches[idx];
-
-		gl.bindBuffer(gl.ARRAY_BUFFER, b.colorBufferId);
-		gl.bufferSubData(gl.ARRAY_BUFFER, 0, colors);
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
-	}
-}
-
-BatchManager.prototype.updateColor = function(idx, color, forceBlending =  false)
-{
-	let gl = this.contextGL.gl;
-	if(this.batches.hasOwnProperty(idx))
-	{
-		let b = this.batches[idx];
-
-		if(color[3] >= 1 && !forceBlending)
-		{
-			b.useBlending = false;
-		}
-		else
-		{
-			b.useBlending = true;
-		}
-		
-		if(!b.isInstance)
-		{
-			b.color = color;
-		}
-		else
-		{
-			// let offset =  idx - b.firstIdx;
-			let offset = b.offsetMap[idx];
-			let c = vec4fToVec4b(color); 
-			gl.bindBuffer(gl.ARRAY_BUFFER, b.colorBufferId);
-			gl.bufferSubData(gl.ARRAY_BUFFER, offset * 4, c);
-			gl.bindBuffer(gl.ARRAY_BUFFER, null);
-		}
-	}
-}
-
-BatchManager.prototype.updateTransform = function(idx, transform)
-{
-	let gl = this.contextGL.gl;
-	if(this.batches.hasOwnProperty(idx))
-	{
-		let b = this.batches[idx];
-
-		if(!b.isInstance)
-		{
-			b.transform = transform;
-		}
-		else
-		{
-			let offset = b.offsetMap[idx];
-			gl.bindBuffer(gl.ARRAY_BUFFER, b.modelBufferId);
-			gl.bufferSubData(gl.ARRAY_BUFFER, offset * 16 * 4, transform);
-			gl.bindBuffer(gl.ARRAY_BUFFER, null);
-		}
-	}
-}
-
-BatchManager.prototype.setVisibility = function(idx, visible)
-{
-	if(this.batches.hasOwnProperty(idx))
-	{
-		let b = this.batches[idx];
-
-		b.visible = visible;
-	}
-}
-
-BatchManager.prototype.setWireframe = function(idx, wireframe)
-{
-	if(this.batches.hasOwnProperty(idx))
-	{
-		let b = this.batches[idx];
-
-		b.isWireframe = wireframe;
-		if(b.isInstance)
-		{
-			b.programId = wireframe ? BatchManager.INSTANCE_WIREFRAME_PROGRAM_ID : BatchManager.INSTANCE_PROGRAM_ID;
-		}
-		else
-		{
-			b.programId = wireframe ? BatchManager.DEFAULT_WIREFRAME_PROGRAM_ID : BatchManager.DEFAULT_PROGRAM_ID;
-		}
-	}
-}
-
 BatchManager.prototype.clearBatches = function()
 {
-	let gl = this.contextGL.gl;
-	for(let i = 0; i < this.batchesKeys.length; i++)
+	// let gl = this.contextGL.gl;
+	// for(let i = 0; i < this.batchesKeys.length; i++)
+	// {
+	// 	let b = this.batches[this.batchesKeys[i]];
+	// 	// gl.deleteBuffer(b.verticesBufferId);
+	// 	// gl.deleteBuffer(b.elementsBufferId);
+	// }
+	// this.batches = {};
+	// this.batchesKeys = [];
+	// this.points = [];
+
+	for(let k in this.layers)
 	{
-		let b = this.batches[this.batchesKeys[i]];
-		gl.deleteBuffer(b.verticesBufferId);
-		gl.deleteBuffer(b.elementsBufferId);
+		this.layers[k] = [];
 	}
+
 	this.batches = {};
-	this.batchesKeys = [];
-	this.points = [];
 }
 
-BatchManager.prototype.hasBatches = function()
+BatchManager.prototype.hasObject = function(id)
 {
-	if(this.batchesKeys.length === 0)
-	{
-		return false;
-	}
-	return true;
+	return this.batches.hasOwnProperty(id);
+}
+BatchManager.prototype.hasBatches = function(layer = 0)
+{
+	let batchesKeys = this.layers[layer] || [];
+
+	return batchesKeys.length > 0 ;
 }
 
 BatchManager.prototype.sortBatches = function(callback)
@@ -274,152 +143,89 @@ BatchManager.prototype.sortBatches = function(callback)
 	this.batchesKeys.sort(callback);
 }
 
-function vec4fToVec4b(v)
-{
-	let out = new Uint8Array(4);
-	out[0] = Math.min(Math.max(v[0], 0), 1) * 255;
-	out[1] = Math.min(Math.max(v[1], 0), 1) * 255;
-	out[2] = Math.min(Math.max(v[2], 0), 1) * 255;
-	out[3] = Math.min(Math.max(v[3], 0), 1) * 255;
-	
-	return out;
-}
 
-function _addInstances(geometry, matrices, colors, options)
+function _addInstances(geometry, modelBufferId, colorBufferId, options)
 {
 	let out = [];
 
-
 	let isBillboard 	= options.isBillboard || options.billboard || false;
-	let useDepthMask 	= !!options.useDepthMask;
 	let billboardSize 	= options.billboardSize || false;
 	let billboardRot 	= options.billboardRotation || false;
 	let textureName 	= options.textureName || null;
 	let inverseCullFace = options.inverseCullFace || false;
-	let cullFace 		= inverseCullFace || options.cullFace || false;
 	let visible 		= options.visible === false ? false : true;
-	let unlit 			= options.hasOwnProperty("unlit") ? options.unlit : false;
+	let mergeIds		= !!options.mergeIds;
 
 	let programId 		= options.programId || null; 
 
-	let useBlending = false;
+	let useBlending 	= !!options.useBlending;
+	let useDepthMask 	= !!options.useDepthMask;
+
+	let unlit 			= !!options.unlit;
+	let instanceCount 	= options.count || 0;
+
+	let transform 		= options.transform || null;
+
+	let layer 			= options.layer || 0;
+
+	let cullFace 		= inverseCullFace || options.cullFace || false;
+	
+	if(textureName)
+	{
+		useBlending = true;
+	}
 
 	let b = {
-			cullFace: cullFace,
-			inverseCullFace: inverseCullFace,
-			isBillboard: isBillboard || false,
 			billboardSize: billboardSize,
 			billboardRotation: billboardRot,
+			colorBufferId: colorBufferId,
+			cullFace: cullFace,
+			instanceCount: instanceCount,
+			inverseCullFace: inverseCullFace,
+			isBillboard: isBillboard,
+			isInstance: true,
 			isWireframe: false,
 			geometry: geometry,
+			modelBufferId: modelBufferId,
+			programId: programId,
 			textureName: textureName,
+			transform: transform,
 			useBlending: useBlending,
 			useDepthMask: useDepthMask,			
-			unlit : unlit || false,
+			unlit : unlit,
 			visible: visible
 			}
 	
-	if(!this.contextGL.hasInstancing)
+	// Generate id for each instance
+	let offsetMap = {};
+
+	if(mergeIds)
 	{
-		const outIdx = this.generateId();
-
-		if(matrices.constructor === Float32Array)
-		{
-			// Replace to vector
-			let temp = [];
-
-			let length = matrices.length / 16;
-
-			for(let i = 0; i < length; i++)
-			{
-				let t = new Float32Array(16);
-				for(let j = 0; j < 16; j++)
-				{
-
-				}
-				temp.push(t);
-			}
-			matrices = temp;
-		}
-		
-		for(let i = 0; i < matrices.length; i++)
-		{
-			let idx = this.generateId();
-			out.push(idx);
-			let t = mat4.clone(matrices[i]);
-			let c = vec4.clone(colors[i]);
-
-			b.transform= t;
-			b.color= c;
-
-			b.isInstance = false;
-			b.programId = programId;
-			
-			this.batchesKeys.push(idx);
-			this.batches[idx] = b;
-		}
-		return outIdx;
+		let idx = this.generateId();
+		out.push(idx);
 	}
 	else
 	{
-		
-		let instanceCount = options.count || 0;
-		
-		// Bind buffer ids
-		let modelBufferId = null; 
-		let colorBufferId = null;
-		if(matrices.constructor === WebGLBuffer)
-		{
-			modelBufferId = matrices;
-		}
-
-		if(colors.constructor === WebGLBuffer)
-		{
-			colorBufferId = colors;
-		}
-		
-		// Generate id for each instance
-		let offsetMap = {};
-		for(let i = 0 ; i < instanceCount; i++)
+		for(let i = 0 ; i < instanceCount && !mergeIds; i++)
 		{
 			let idx = this.generateId();
 			offsetMap[idx] = i;
 			out.push(idx);
 		}
-
-		if(textureName)
-		{
-			useBlending = true;
-		}
-		
-		b.instanceCount = instanceCount ;
-		b.useBlending = options.hasOwnProperty("useBlending") ? options.useBlending : useBlending;
-		b.useDepthMask = options.hasOwnProperty("useDepthMask") ? options.useDepthMask : useDepthMask;
-		b.transform = options.transform || null; 
-		b.modelBufferId = modelBufferId;
-		b.colorBufferId = colorBufferId;
-		b.offsetMap = offsetMap;
-
-		b.isInstance = true;
-		b.programId =  programId;
-		
-		for(let i = 0 ; i < out.length; i++)
-		{
-			let idx = out[i];
-			this.batches[idx] = b;	
-		}
-		this.batchesKeys.push(out[0]);
 	}
-	return out;
-}
 
-BatchManager.prototype.forceUseBlending = function(blending = false)
-{
-	for(let i = 0 ; i < this.batchesKeys.length; i++)
+	b.offsetMap = offsetMap;
+
+	
+	for(let i = 0 ; i < out.length; i++)
 	{
-		let b = this.batches[this.batchesKeys[i]];
-		b.useBlending = blending;
+		let idx = out[i];
+		this.batches[idx] = b;	
 	}
+
+	let batchesKeys = this.layers[layer];
+	batchesKeys.push(out[0]);
+	return out;
 }
 
 
